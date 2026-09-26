@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="..\MyFundex.BuildingBlocks\MyFundex.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\MyFundex.Contracts\MyFundex.Contracts.csproj" />
+    <ProjectReference Include="..\MyFundex.Identity\MyFundex.Identity.csproj" />
+    <ProjectReference Include="..\MyFundex.MasterData\MyFundex.MasterData.csproj" />
+    <ProjectReference Include="..\MyFundex.Configuration\MyFundex.Configuration.csproj" />
+    <ProjectReference Include="..\MyFundex.Subscription\MyFundex.Subscription.csproj" />
+    <ProjectReference Include="..\MyFundex.FundedAccounts\MyFundex.FundedAccounts.csproj" />
+    <ProjectReference Include="..\MyFundex.Trading\MyFundex.Trading.csproj" />
+    <ProjectReference Include="..\MyFundex.Portfolio\MyFundex.Portfolio.csproj" />
+    <ProjectReference Include="..\MyFundex.Risk\MyFundex.Risk.csproj" />
+    <ProjectReference Include="..\MyFundex.Payments\MyFundex.Payments.csproj" />
+    <ProjectReference Include="..\MyFundex.Wallet\MyFundex.Wallet.csproj" />
+    <ProjectReference Include="..\MyFundex.Withdrawals\MyFundex.Withdrawals.csproj" />
+    <ProjectReference Include="..\MyFundex.Broker\MyFundex.Broker.csproj" />
+    <ProjectReference Include="..\MyFundex.MarketData\MyFundex.MarketData.csproj" />
+    <ProjectReference Include="..\MyFundex.Intelligence\MyFundex.Intelligence.csproj" />
+    <ProjectReference Include="..\MyFundex.Notifications\MyFundex.Notifications.csproj" />
+    <ProjectReference Include="..\MyFundex.Administration\MyFundex.Administration.csproj" />
+    <ProjectReference Include="..\MyFundex.Audit\MyFundex.Audit.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.10"><PrivateAssets>all</PrivateAssets></PackageReference>
+    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.8.1" />
+    <PackageReference Include="StackExchange.Redis" Version="2.8.16" />
+  </ItemGroup>
+</Project>

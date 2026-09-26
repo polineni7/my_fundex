@@ -1,0 +1,3 @@
+using System.Net;using System.Text.Json;
+namespace MyFundex.Api.Infrastructure;
+public sealed class ExceptionMiddleware(RequestDelegate next,ILogger<ExceptionMiddleware> log){public async Task Invoke(HttpContext ctx){try{await next(ctx);}catch(Exception ex){var cid=ctx.TraceIdentifier;log.LogError(ex,"Unhandled error {CorrelationId}",cid);ctx.Response.StatusCode=(int)HttpStatusCode.InternalServerError;ctx.Response.ContentType="application/problem+json";await ctx.Response.WriteAsync(JsonSerializer.Serialize(new{type="https://httpstatuses.com/500",title="Unexpected server error",status=500,correlationId=cid}));}}}
