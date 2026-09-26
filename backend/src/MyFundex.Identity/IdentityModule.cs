@@ -23,13 +23,12 @@ public sealed class RolePermission : EntityBase { public long RoleInternalId { g
 public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> o, ICurrentActor a) : AuditableDbContext(o,a)
 {
     public DbSet<User> Users => Set<User>(); public DbSet<Role> Roles => Set<Role>(); public DbSet<Permission> Permissions => Set<Permission>(); public DbSet<UserRole> UserRoles => Set<UserRole>(); public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
-    protected override void OnModelCreating(ModelBuilder m)
-    {
+    protected override void OnModelCreating(ModelBuilder m) => ConfigureModel(m); public static void ConfigureModel(ModelBuilder m) {
         m.HasDefaultSchema("identity");
-        foreach (var t in new[]{typeof(User),typeof(Role),typeof(Permission),typeof(UserRole),typeof(RolePermission)}) ConfigureEntityDynamic(m,t);
-        m.Entity<User>().HasIndex(x=>x.UserId).IsUnique(); m.Entity<User>().HasIndex(x=>x.Email).IsUnique().HasFilter("is_deleted = false");
-        m.Entity<Role>().HasIndex(x=>x.Code).IsUnique().HasFilter("is_deleted = false");
-        m.Entity<Permission>().HasIndex(x=>x.Code).IsUnique().HasFilter("is_deleted = false");
+        ConfigureEntity(m.Entity<User>()); ConfigureEntity(m.Entity<Role>()); ConfigureEntity(m.Entity<Permission>()); ConfigureEntity(m.Entity<UserRole>()); ConfigureEntity(m.Entity<RolePermission>());
+        m.Entity<User>().HasIndex(x=>x.UserId).IsUnique(); m.Entity<User>().HasIndex(x=>x.Email).IsUnique().HasFilter("\"IsDeleted\" = false");
+        m.Entity<Role>().HasIndex(x=>x.Code).IsUnique().HasFilter("\"IsDeleted\" = false");
+        m.Entity<Permission>().HasIndex(x=>x.Code).IsUnique().HasFilter("\"IsDeleted\" = false");
     }
     static void ConfigureEntityDynamic(ModelBuilder m, Type t) => typeof(AuditableDbContext).GetMethod("ConfigureEntity", System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Static)!.MakeGenericMethod(t).Invoke(null,new object[]{m.Entity(t)});
 }

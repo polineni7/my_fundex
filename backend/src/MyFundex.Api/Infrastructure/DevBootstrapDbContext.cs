@@ -44,6 +44,14 @@ public sealed class DevBootstrapDbContext(DbContextOptions<DevBootstrapDbContext
         Map<WithdrawalRequest>(m,"Requests","withdrawal"); Map<WithdrawalCalculation>(m,"Calculations","withdrawal");
         Map<Instrument>(m,"Instruments","market"); Map<TradingCalendarDay>(m,"TradingCalendar","market");
         Map<InstrumentSignal>(m,"Signals","intelligence"); Map<Notification>(m,"Notifications","notification"); Map<AuditEvent>(m,"Events","audit");
+        IdentityDbContext.ConfigureModel(m); MasterDataDbContext.ConfigureModel(m);
+        ConfigurationDbContext.ConfigureModel(m); SubscriptionDbContext.ConfigureModel(m);
+        AccountsDbContext.ConfigureModel(m); RiskDbContext.ConfigureModel(m);
+        BrokerDbContext.ConfigureModel(m); TradingDbContext.ConfigureModel(m);
+        PortfolioDbContext.ConfigureModel(m); PaymentsDbContext.ConfigureModel(m);
+        WalletDbContext.ConfigureModel(m); WithdrawalDbContext.ConfigureModel(m);
+        MarketDataDbContext.ConfigureModel(m); IntelligenceDbContext.ConfigureModel(m);
+        NotificationDbContext.ConfigureModel(m); AuditDbContext.ConfigureModel(m);
     }
 
     private static void Map<T>(ModelBuilder m, string table, string schema) where T: EntityBase

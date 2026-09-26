@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <ProjectReference Include="..\MyFundex.MyFundex.BuildingBlocks\MyFundex.MyFundex.BuildingBlocks.csproj" />
-    <ProjectReference Include="..\MyFundex.MyFundex.Contracts\MyFundex.MyFundex.Contracts.csproj" />
+    <ProjectReference Include="..\MyFundex.BuildingBlocks\MyFundex.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\MyFundex.Contracts\MyFundex.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.10" />

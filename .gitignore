@@ -3,6 +3,10 @@
 **/node_modules/
 **/dist/
 .env
+.env.*
+!.env.example
+**/appsettings.Local.json
+*.log
 *.user
 *.suo
 .vs/
