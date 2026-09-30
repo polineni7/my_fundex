@@ -14,6 +14,7 @@ public static class TradingModule
     {
         s.AddDbContext<TradingDbContext>(o => o.UseNpgsql(cs));
         s.AddScoped<OrderService>();
+        s.AddScoped<CancelOrderService>();
         return s;
     }
 }

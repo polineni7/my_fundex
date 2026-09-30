@@ -2,8 +2,10 @@ import React from "react";
 import { NavLink, Route, Routes } from "react-router-dom";
 import { useAuth } from "../store";
 import Dashboard from "../features/dashboard/Dashboard";
+import Orders from "../features/trading/Orders";
 import Trade from "../features/trading/Trade";
 import Simple from "../components/tables/RecordsPage";
+import Subscriptions from "../features/subscriptions/Subscriptions";
 import Plans from "../features/plans/Plans";
 export default function Shell() {
   const logout = useAuth((s) => s.logout);
@@ -29,22 +31,7 @@ export default function Shell() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/plans" element={<Plans />} />
-          <Route
-            path="/subscriptions"
-            element={
-              <Simple
-                path="/subscriptions"
-                title="Subscriptions"
-                cols={[
-                  "name",
-                  "versionNumber",
-                  "registrationFee",
-                  "status",
-                  "subscribedAt",
-                ]}
-              />
-            }
-          />
+          <Route path="/subscriptions" element={<Subscriptions />} />
           <Route
             path="/payments"
             element={
@@ -62,23 +49,7 @@ export default function Shell() {
             }
           />
           <Route path="/trade" element={<Trade />} />
-          <Route
-            path="/orders"
-            element={
-              <Simple
-                path="/orders"
-                title="Orders"
-                cols={[
-                  "symbol",
-                  "side",
-                  "quantity",
-                  "status",
-                  "brokerOrderId",
-                  "createdAt",
-                ]}
-              />
-            }
-          />
+          <Route path="/orders" element={<Orders />} />
           <Route
             path="/positions"
             element={

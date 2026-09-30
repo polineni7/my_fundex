@@ -10,9 +10,10 @@ using MyFundex.Contracts;
 
 namespace MyFundex.Broker;
 
-public sealed class UpstoxOrderGateway(HttpClient http, IRuntimeSettings settings)
-    : IBrokerOrderGateway
+public sealed class UpstoxOrderGateway(HttpClient http, IRuntimeSettings settings) : IBrokerAdapter
 {
+    public string Provider => "Upstox";
+
     public async Task<BrokerOrderResponse> PlaceAsync(BrokerOrderRequest r, CancellationToken ct)
     {
         var env = r.Environment;
@@ -36,7 +37,7 @@ public sealed class UpstoxOrderGateway(HttpClient http, IRuntimeSettings setting
         var url =
             env == "PRODUCTION"
                 ? "https://api-hft.upstox.com/v3/order/place"
-                : "https://sandbox.upstox.com/v3/order/place";
+                : "https://api-sandbox.upstox.com/v3/order/place";
         using var req = new HttpRequestMessage(HttpMethod.Post, url);
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
@@ -75,5 +76,40 @@ public sealed class UpstoxOrderGateway(HttpClient http, IRuntimeSettings setting
         return resp.IsSuccessStatusCode && !string.IsNullOrWhiteSpace(oid)
             ? new(true, oid, null, null, raw)
             : new(false, null, resp.StatusCode.ToString(), raw, raw);
+    }
+
+    public async Task<BrokerCancellation> CancelAsync(
+        BrokerOrderReference order,
+        CancellationToken ct
+    )
+    {
+        if (order.Environment is not ("SANDBOX" or "PRODUCTION"))
+            throw new ArgumentException("Invalid broker environment.");
+        if (order.Environment == "PRODUCTION" && string.IsNullOrWhiteSpace(order.CredentialKey))
+            return new(false, "Live account is not linked.");
+        var key =
+            order.Environment == "PRODUCTION"
+                ? $"Broker.Upstox.Accounts.{order.CredentialKey}.AccessToken"
+                : "Broker.Upstox.Sandbox.AccessToken";
+        var token = await settings.GetAsync(key, "GLOBAL", ct);
+        if (string.IsNullOrWhiteSpace(token))
+            return new(false, "Broker credentials are not configured.");
+        var origin =
+            order.Environment == "PRODUCTION"
+                ? "https://api-hft.upstox.com"
+                : "https://api-sandbox.upstox.com";
+        using var request = new HttpRequestMessage(
+            HttpMethod.Delete,
+            $"{origin}/v3/order/cancel?order_id={Uri.EscapeDataString(order.OrderId)}"
+        );
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        using var response = await http.SendAsync(request, ct);
+        if (!response.IsSuccessStatusCode)
+            return new(false, "Broker did not confirm cancellation. Reconciliation is required.");
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+        var accepted =
+            payload.RootElement.TryGetProperty("status", out var status)
+            && status.GetString() == "success";
+        return new(accepted, accepted ? null : "Broker did not confirm cancellation.");
     }
 }

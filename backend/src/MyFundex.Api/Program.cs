@@ -225,6 +225,8 @@ api.MapGet(
                 {
                     x.AccountId,
                     x.AccountNumber,
+                    x.TradingMode,
+                    x.BrokerProvider,
                     x.Status,
                     x.FundedCapital,
                     x.CurrentBuyingPower,
@@ -283,6 +285,16 @@ api.MapPost(
         return r.Success ? Results.Ok(r.Value) : Results.BadRequest(new { message = r.Error });
     }
 );
+api.MapPost(
+    "/orders/{orderId:guid}/cancel",
+    async (Guid orderId, CancelOrderService service, CancellationToken ct) =>
+    {
+        var result = await service.CancelAsync(orderId, ct);
+        return result.Success
+            ? Results.Ok(result.Value)
+            : Results.BadRequest(new { message = result.Error });
+    }
+);
 api.MapGet(
     "/orders",
     async (TradingDbContext db, ICurrentActor actor, AccountsDbContext adb, CancellationToken ct) =>
@@ -301,6 +313,8 @@ api.MapGet(
                 .Select(x => new
                 {
                     x.OrderId,
+                    x.BrokerEnvironment,
+                    x.BrokerProvider,
                     x.AccountId,
                     x.Symbol,
                     x.InstrumentToken,
@@ -441,6 +455,8 @@ admin.MapGet(
                 {
                     x.AccountId,
                     x.AccountNumber,
+                    x.TradingMode,
+                    x.BrokerProvider,
                     x.Status,
                     x.FundedCapital,
                     x.CurrentBuyingPower,

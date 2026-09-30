@@ -14,8 +14,12 @@ public sealed class PaidSubscriptionActivator(
             x => x.SubscriptionId == subscriptionId && x.UserInternalId == userId,
             ct
         );
-        if (subscription.Status != "PendingPayment")
+        if (subscription.Status is "Evaluation" or "Completed")
             return;
+        if (subscription.Status != "PendingPayment")
+            throw new InvalidOperationException(
+                "Subscription cannot be activated from its current status."
+            );
         var stage = await db
             .Stages.AsNoTracking()
             .Where(x => x.PlanVersionInternalId == subscription.PlanVersionInternalId)

@@ -25,7 +25,7 @@ export default function Shell() {
       </aside>
       <main className="main">
         <Routes>
-          <Route path="/plans" element={<Plans/>}/>
+          <Route path="/plans" element={<Plans />} />
           <Route path="/" element={<Dashboard />} />
           <Route
             path="/accounts"
@@ -35,6 +35,8 @@ export default function Shell() {
                 title="Funded accounts"
                 cols={[
                   "accountNumber",
+                  "tradingMode",
+                  "brokerProvider",
                   "status",
                   "fundedCapital",
                   "currentBuyingPower",

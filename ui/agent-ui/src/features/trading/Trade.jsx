@@ -1,7 +1,10 @@
 import React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { api } from "../../api";
 export default function Trade() {
+  const submitting = useRef(false);
+  const request = useRef(null);
+  const [busy, setBusy] = useState(false);
   const [accounts, setAccounts] = useState([]),
     [q, setQ] = useState(""),
     [items, setItems] = useState([]),
@@ -17,30 +20,65 @@ export default function Trade() {
     }),
     [msg, setMsg] = useState("");
   useEffect(() => {
-    api("/accounts").then((a) => {
-      setAccounts(a);
-      if (a[0]) setForm((f) => ({ ...f, accountId: a[0].accountId }));
-    });
+    api("/accounts")
+      .then((a) => {
+        a = a.filter((account) => account.status === "Active");
+        setAccounts(a);
+        if (a[0]) setForm((f) => ({ ...f, accountId: a[0].accountId }));
+      })
+      .catch((error) => setMsg(error.message));
   }, []);
-  async function search(v) {
-    setQ(v);
-    if (v.length > 1)
-      setItems(await api("/market/instruments?q=" + encodeURIComponent(v)));
-  }
+  useEffect(() => {
+    if (q.length < 2) {
+      setItems([]);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      api("/market/instruments?q=" + encodeURIComponent(q), {
+        signal: controller.signal,
+      })
+        .then(setItems)
+        .catch((error) => {
+          if (error.name !== "AbortError") setMsg(error.message);
+        });
+    }, 250);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [q]);
   async function place() {
+    if (submitting.current) return;
+    submitting.current = true;
+    setBusy(true);
+    const payload = {
+      accountId: form.accountId,
+      instrumentToken: form.instrumentToken,
+      symbol: form.symbol,
+      side: form.side,
+      orderType: form.orderType,
+      quantity: Number(form.quantity),
+      price: form.orderType === "LIMIT" ? Number(form.price) : null,
+    };
+    const fingerprint = JSON.stringify(payload);
+    if (request.current?.fingerprint !== fingerprint)
+      request.current = { fingerprint, id: crypto.randomUUID() };
     try {
       const r = await api("/orders", {
         method: "POST",
         body: JSON.stringify({
-          ...form,
-          quantity: Number(form.quantity),
-          price: form.orderType === "LIMIT" ? Number(form.price) : null,
-          idempotencyKey: crypto.randomUUID(),
+          ...payload,
+          idempotencyKey: request.current.id,
         }),
       });
       setMsg(`Order ${r.orderId} ${r.status}`);
+      request.current = null;
     } catch (e) {
       setMsg(e.message);
+    } finally {
+      submitting.current = false;
+      setBusy(false);
     }
   }
   return (
@@ -56,6 +94,7 @@ export default function Trade() {
           >
             {accounts.map((a) => (
               <option key={a.accountId} value={a.accountId}>
+                {a.tradingMode === "Evaluation" ? "Paper" : "Real"} ·{" "}
                 {a.accountNumber}
               </option>
             ))}
@@ -64,7 +103,7 @@ export default function Trade() {
           <input
             className="field"
             value={q}
-            onChange={(e) => search(e.target.value)}
+            onChange={(e) => setQ(e.target.value)}
             placeholder="INFY, TCS..."
           />
           {items.map((i) => (
@@ -100,7 +139,7 @@ export default function Trade() {
             onChange={(e) => setForm({ ...form, side: e.target.value })}
           >
             <option>BUY</option>
-            <option>SELL</option>
+            <option disabled>SELL</option>
           </select>
           <input
             className="field"
@@ -133,10 +172,10 @@ export default function Trade() {
           )}
           <button
             className="btn"
-            disabled={!form.instrumentToken}
+            disabled={busy || !form.instrumentToken || !form.accountId}
             onClick={place}
           >
-            Place order
+            {busy ? "Submitting..." : "Place order"}
           </button>
           {msg && <p>{msg}</p>}
         </div>

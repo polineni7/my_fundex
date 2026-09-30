@@ -9,6 +9,7 @@ namespace MyFundex.Wallet;
 
 public sealed class LedgerTransaction : EntityBase, IImmutableRecord
 {
+    public string? PostingKey { get; set; }
     public Guid TransactionId { get; set; }
     public string TransactionType { get; set; } = "";
     public string ReferenceType { get; set; } = "";

@@ -24,7 +24,8 @@ public sealed class AccountService(AccountsDbContext db)
                 x.Status,
                 x.Version,
                 x.TradingMode,
-                x.BrokerCredentialKey
+                x.BrokerCredentialKey,
+                x.BrokerProvider
             ))
             .SingleOrDefaultAsync(ct);
 
@@ -35,6 +36,7 @@ public sealed class AccountService(AccountsDbContext db)
         CancellationToken ct
     )
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(amount);
         var rows = await db
             .Accounts.Where(x =>
                 x.Id == id
@@ -52,13 +54,18 @@ public sealed class AccountService(AccountsDbContext db)
         return rows == 1;
     }
 
-    public Task ReleaseAsync(long id, decimal amount, CancellationToken ct) =>
-        db
+    public Task ReleaseAsync(long id, decimal amount, CancellationToken ct)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(amount);
+        return db
             .Accounts.Where(x => x.Id == id)
             .ExecuteUpdateAsync(
-                s =>
-                    s.SetProperty(x => x.CurrentBuyingPower, x => x.CurrentBuyingPower + amount)
-                        .SetProperty(x => x.Version, x => x.Version + 1),
+                update =>
+                    update
+                        .SetProperty(x => x.CurrentBuyingPower, x => x.CurrentBuyingPower + amount)
+                        .SetProperty(x => x.Version, x => x.Version + 1)
+                        .SetProperty(x => x.UpdatedAt, DateTimeOffset.UtcNow),
                 ct
             );
+    }
 }

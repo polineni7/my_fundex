@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { api } from "../../api";
 import { useRecords } from "../../useRecords";
 const money = (value) =>
@@ -10,15 +10,21 @@ const money = (value) =>
 export default function Plans() {
   const { rows, loading, error } = useRecords("/plan-catalogue");
   const [path, setPath] = useState("TwoStep");
+  const purchaseRequests = useRef(new Map());
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   async function subscribe(plan) {
     setBusy(true);
     setMessage("");
     try {
+      if (!purchaseRequests.current.has(plan.planVersionId))
+        purchaseRequests.current.set(plan.planVersionId, crypto.randomUUID());
       await api("/subscriptions", {
         method: "POST",
-        body: JSON.stringify({ planVersionId: plan.planVersionId }),
+        body: JSON.stringify({
+          planVersionId: plan.planVersionId,
+          idempotencyKey: purchaseRequests.current.get(plan.planVersionId),
+        }),
       });
       setMessage(
         "Your subscription is awaiting payment. See Subscriptions for its status.",

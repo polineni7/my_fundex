@@ -83,7 +83,8 @@ public sealed class SafetyTests
             null!,
             null!,
             null!,
-            new Actor()
+            new Actor(),
+            null!
         );
         var result = await service.PlaceAsync(command, default);
         Assert.False(result.Success);

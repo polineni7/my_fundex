@@ -38,7 +38,8 @@ public sealed class OrderService(
     IRiskGuard risk,
     IBrokerOrderGateway broker,
     IMarketQuoteProvider quotes,
-    ICurrentActor actor
+    ICurrentActor actor,
+    ITradingEligibility eligibility
 )
 {
     public async Task<Result<PlaceOrderResult>> PlaceAsync(
@@ -74,6 +75,14 @@ public sealed class OrderService(
         }
         if (account.Status != "Active")
             return Result<PlaceOrderResult>.Fail("Funded account is not active.");
+        var access = await eligibility.CheckAsync(
+            account.AccountId,
+            actor.ActorId,
+            account.TradingMode,
+            ct
+        );
+        if (!access.Allowed)
+            return Result<PlaceOrderResult>.Fail(access.Reason ?? "Trading is unavailable.");
         // Until sell-side inventory reservations and execution reconciliation are implemented, fail closed.
         if (c.Side == "SELL")
             return Result<PlaceOrderResult>.Fail(
@@ -112,6 +121,7 @@ public sealed class OrderService(
             RequestedPrice = c.Price,
             BrokerEnvironment = AccountTradingRoute.Resolve(account.TradingMode),
             BrokerCredentialKey = account.BrokerCredentialKey,
+            BrokerProvider = account.BrokerProvider,
             IdempotencyKey = c.IdempotencyKey,
             CorrelationId = Guid.NewGuid(),
             Status = "PendingReservation",
@@ -141,7 +151,8 @@ public sealed class OrderService(
                     c.Price,
                     order.OrderId.ToString("N"),
                     order.BrokerEnvironment,
-                    order.BrokerCredentialKey
+                    order.BrokerCredentialKey,
+                    order.BrokerProvider
                 ),
                 ct
             );

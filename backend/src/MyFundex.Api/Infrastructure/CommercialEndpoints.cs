@@ -25,6 +25,7 @@ public static class CommercialEndpoints
                         select new
                         {
                             subscription.SubscriptionId,
+                            subscription.PreviousSubscriptionId,
                             plan.Name,
                             version.PlanVersionId,
                             version.VersionNumber,
@@ -64,32 +65,18 @@ public static class CommercialEndpoints
             "/subscriptions",
             async (
                 SubscribeRequest request,
-                SubscriptionDbContext db,
+                SubscriptionPurchaseService purchases,
                 ICurrentActor actor,
                 CancellationToken ct
             ) =>
             {
-                var now = DateTimeOffset.UtcNow;
-                var version = await db.PlanVersions.SingleOrDefaultAsync(
-                    x =>
-                        x.PlanVersionId == request.PlanVersionId
-                        && x.Status == "Active"
-                        && x.EffectiveFrom <= now
-                        && (x.EffectiveTo == null || x.EffectiveTo > now),
+                var subscription = await purchases.CreateAsync(
+                    actor.ActorId,
+                    request.PlanVersionId,
+                    request.IdempotencyKey,
+                    request.PreviousSubscriptionId,
                     ct
                 );
-                if (version == null)
-                    return Results.NotFound(new { message = "Active plan version not found." });
-                var subscription = new UserSubscription
-                {
-                    SubscriptionId = Guid.NewGuid(),
-                    UserInternalId = actor.ActorId,
-                    PlanInternalId = version.PlanInternalId,
-                    PlanVersionInternalId = version.Id,
-                    SubscribedAt = now,
-                };
-                db.Add(subscription);
-                await db.SaveChangesAsync(ct);
                 return Results.Created(
                     $"/api/v1/subscriptions/{subscription.SubscriptionId}",
                     new { subscription.SubscriptionId, subscription.Status }
@@ -194,18 +181,12 @@ public static class CommercialEndpoints
                         return Results.Conflict();
                     return CheckoutResult(existing, gateway);
                 }
-                if (
-                    await db.Payments.AnyAsync(
-                        x => x.SubscriptionId == request.SubscriptionId && x.Status != "Failed",
-                        ct
-                    )
-                )
-                    return Results.Conflict(
-                        new
-                        {
-                            message = "A payment already exists for this subscription. Reconcile it before creating another.",
-                        }
-                    );
+                var pending = await db.Payments.SingleOrDefaultAsync(
+                    x => x.SubscriptionId == request.SubscriptionId && x.Status != "Failed",
+                    ct
+                );
+                if (pending != null)
+                    return CheckoutResult(pending, gateway);
                 var version = await subscriptions
                     .PlanVersions.AsNoTracking()
                     .SingleAsync(x => x.Id == subscription.PlanVersionInternalId, ct);
@@ -364,7 +345,11 @@ public static class CommercialEndpoints
     }
 }
 
-public sealed record SubscribeRequest(Guid PlanVersionId);
+public sealed record SubscribeRequest(
+    Guid PlanVersionId,
+    Guid IdempotencyKey,
+    Guid? PreviousSubscriptionId = null
+);
 
 public sealed record CheckoutRequest(Guid SubscriptionId, Guid IdempotencyKey);
 

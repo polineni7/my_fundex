@@ -8,6 +8,8 @@ namespace MyFundex.Subscription;
 
 public sealed class UserSubscription : EntityBase
 {
+    public Guid? PurchaseRequestId { get; set; }
+    public Guid? PreviousSubscriptionId { get; set; }
     public Guid SubscriptionId { get; set; }
     public long UserInternalId { get; set; }
     public long PlanInternalId { get; set; }

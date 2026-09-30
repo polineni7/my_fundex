@@ -9,7 +9,8 @@ public sealed record FundedAccountSnapshot(
     string Status,
     long Version,
     string TradingMode = "Evaluation",
-    string? BrokerCredentialKey = null
+    string? BrokerCredentialKey = null,
+    string BrokerProvider = "Upstox"
 );
 
 public interface IFundedAccountReader
@@ -53,7 +54,8 @@ public sealed record BrokerOrderRequest(
     decimal? Price,
     string Tag,
     string Environment = "SANDBOX",
-    string? CredentialKey = null
+    string? CredentialKey = null,
+    string Provider = "Upstox"
 );
 
 public sealed record BrokerOrderResponse(

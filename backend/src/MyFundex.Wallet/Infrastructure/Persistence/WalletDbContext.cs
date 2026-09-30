@@ -22,6 +22,7 @@ public sealed class WalletDbContext(DbContextOptions<WalletDbContext> o, ICurren
         ConfigureEntity(m.Entity<WalletAccount>());
         ConfigureEntity(m.Entity<LedgerTransaction>());
         ConfigureEntity(m.Entity<LedgerEntry>());
+        m.Entity<LedgerTransaction>().HasIndex(x => x.PostingKey).IsUnique();
         m.Entity<WalletAccount>().HasIndex(x => x.WalletId).IsUnique();
         m.Entity<WalletAccount>()
             .HasIndex(x => x.FundedAccountInternalId)

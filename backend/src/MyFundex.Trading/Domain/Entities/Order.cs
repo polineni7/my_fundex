@@ -11,6 +11,7 @@ namespace MyFundex.Trading;
 public sealed class Order : EntityBase
 {
     public string BrokerEnvironment { get; set; } = "SANDBOX";
+    public string BrokerProvider { get; set; } = "Upstox";
     public string? BrokerCredentialKey { get; set; }
     public Guid OrderId { get; set; }
     public Guid AccountId { get; set; }

@@ -37,6 +37,7 @@ public sealed class SubscriptionDbContext(
             .HasIndex(x => new { x.PlanInternalId, x.VersionNumber })
             .IsUnique()
             .HasFilter("\"IsDeleted\" = false");
+        m.Entity<UserSubscription>().HasIndex(x => x.PurchaseRequestId).IsUnique();
         m.Entity<UserSubscription>().HasIndex(x => x.SubscriptionId).IsUnique();
     }
 }
