@@ -1,25 +1,15 @@
-# Architecture
+# Current architecture
 
-## V1 deployment
-A modular monolith with one ASP.NET Core host and one PostgreSQL database. Every business module is an independent .NET project and owns one PostgreSQL schema. Redis is reserved for hot cache/rate-limit/realtime expansion. External Upstox calls are behind `IBrokerOrderGateway`.
+V1 is one ASP.NET Core deployment plus an optional instrument-sync worker. Business modules remain separate class libraries. The API is the composition root and currently still contains several endpoint orchestration handlers; complete extraction of those handlers into module application layers is pending.
 
-## Scale path
-- <10K active: 2+ stateless API replicas, PostgreSQL HA, Redis, dedicated workers as traffic grows.
-- 10K-50K: separate MarketData and BrokerExecution processes, read replicas, managed WebSocket/SignalR, message broker when queue pressure justifies it.
-- 50K-100K+: extract Trading/Risk/MarketData/Wallet/Portfolio/Notification/Intelligence modules into services. Contracts remain stable.
+Each business library now has Domain, Application, Infrastructure and Contracts directories, plus DependencyInjection.cs. Existing public namespaces were retained to preserve callers while moving implementations. Shared cross-module interfaces live in MyFundex.Contracts; business projects reference Contracts/BuildingBlocks instead of each other's DbContexts.
 
-## DB-lock discipline
-- No broker/network calls inside DB transactions.
-- Short financial transactions only.
-- Optimistic concurrency through `Version`.
-- `ExecuteUpdateAsync` for atomic capital reservations.
-- Read-only queries use `AsNoTracking` and projection.
-- Correct composite/partial indexes should be added from production query patterns.
-- Event/history tables are append-oriented.
+Each module defaults to `fundex_<module>`; accounts/master/market/notification/withdrawal retain their established singular short names. The host's deployment model combines explicit module mappings. EF history lives in fundex_integration. It is a fresh-install migration, not a legacy-data migration.
 
-## Security
-- Internal PKs are never exposed by normal APIs.
-- Public IDs are UUIDv7 (`Guid.CreateVersion7()` in .NET 9+; on .NET 8 use a UUIDv7 library or database generation). NOTE: this source targets net8; replace `Guid.CreateVersion7()` with the supplied UUID helper/library if your SDK lacks it.
-- JWT + role/permission claims.
-- Secrets should ultimately move to a vault; DB setting rows are for runtime non-secret configuration or encrypted references.
-- UAT and PROD must be separate deployments/databases.
+EntityBase supplies internal long keys, audit fields, soft deletion and optimistic Version. Public entities retain domain-specific UUIDs. Monetary properties default to numeric(20,4), with quantity/price overrides retained. Immutable financial/audit records reject updates/deletion through SaveChanges.
+
+External broker/payment calls happen outside local DB transactions. Provisioning uses idempotent receivers across module boundaries; a paid-payment polling worker retries partial initial activation. This is not yet the full durable financial outbox/reconciliation architecture.
+
+Account route selection and payment environment are independent. Evaluation always targets sandbox; Funded targets live and requires a broker credential reference. Live activation and broker account opening/funding remain separate unfinished workflows.
+
+See SETUP_AND_VALIDATION.md for limitations, key management, migration and verification status.

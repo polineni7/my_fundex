@@ -1,3 +1,5 @@
+> Historical report from 2026-09-26. Superseded by [current setup and validation](SETUP_AND_VALIDATION.md).
+
 # MyFundex — implementation status
 
 Reviewed against `MY_FUNDEX_MASTER_DOCUMENTATION.md` on 2026-09-26.
@@ -70,3 +72,4 @@ This repository is a partial V1 implementation, not a completed trading platform
 - [Razorpay Orders](https://razorpay.com/docs/api/orders/create/)
 - [Razorpay Standard Checkout verification](https://razorpay.com/docs/payments/payment-gateway/web-integration/standard/integration-steps/)
 - [Upstox V3 order placement](https://upstox.com/developer/api-documentation/v3/place-order/)
+

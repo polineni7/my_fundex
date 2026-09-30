@@ -1,9 +1,15 @@
-import {useRecords} from './useRecords';
-import React,{useEffect,useState} from 'react';import {BrowserRouter,NavLink,Route,Routes,useNavigate} from 'react-router-dom';import {api} from './api';import {useAuth} from './store';
-function Login(){const nav=useNavigate(),login=useAuth(s=>s.login);const[email,setEmail]=useState(''),[password,setPassword]=useState(''),[err,setErr]=useState('');async function submit(e){e.preventDefault();try{const r=await api('/auth/login',{method:'POST',body:JSON.stringify({email,password})});if(!r.user.roles.some(role=>role==='ADMIN'||role==='MANAGER'))throw new Error('Administrator or manager access is required.');login(r.accessToken,r.user);nav('/');}catch(e){setErr(e.message)}}return <div className="login"><form className="card" onSubmit={submit}><h1>MyFundex Admin</h1><input className="field" value={email} onChange={e=>setEmail(e.target.value)}/><input className="field" type="password" value={password} onChange={e=>setPassword(e.target.value)}/>{err&&<p className="error">{err}</p>}<button className="btn">Sign in</button></form></div>}
-function TablePage({path,title,cols}){const {rows,loading,error}=useRecords(path);return <><h1>{title}</h1><div className="card">{loading?<p role="status">Loading…</p>:error?<p role="alert" className="error">{error}</p>:rows.length===0?<p>No records yet.</p>:<Table rows={rows} cols={cols}/>}</div></>}
-function Settings(){const[r,setR]=useState([]);useEffect(()=>{api('/admin/settings').then(setR)},[]);async function edit(x){const value=prompt(`Value for ${x.settingKey}`,x.value==='********'?'':x.value);if(value==null)return;await api('/admin/settings/'+encodeURIComponent(x.settingKey),{method:'PUT',body:JSON.stringify({value,environment:x.environment,category:x.category})});setR(await api('/admin/settings'));}return <><h1>Runtime settings</h1><div className="card"><table className="table"><thead><tr><th>Key</th><th>Value</th><th>Environment</th><th>Category</th><th></th></tr></thead><tbody>{r.map(x=><tr key={x.settingId}><td>{x.settingKey}</td><td>{x.value}</td><td>{x.environment}</td><td>{x.category}</td><td><button className="btn secondary" onClick={()=>edit(x)}>Edit</button></td></tr>)}</tbody></table></div></>}
-function Dashboard(){const[a,setA]=useState([]);useEffect(()=>{api('/admin/accounts').then(setA)},[]);return <><h1>Operations dashboard</h1><div className="grid"><Card t="Funded accounts" v={a.length}/><Card t="Active" v={a.filter(x=>x.status==='Active').length}/><Card t="Suspended" v={a.filter(x=>x.status==='Suspended').length}/><Card t="Capital monitored" v={'₹'+a.reduce((s,x)=>s+Number(x.fundedCapital||0),0).toLocaleString()}/></div><div className="card" style={{marginTop:16}}><Table rows={a.slice(0,20)} cols={['accountNumber','status','fundedCapital','currentBuyingPower','version','createdAt']}/></div></>}
-function Card({t,v}){return <div className="card"><div className="muted">{t}</div><div className="metric">{v}</div></div>}function Table({rows,cols}){return <div style={{overflow:'auto'}}><table className="table"><thead><tr>{cols.map(c=><th key={c}>{c}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={i}>{cols.map(c=><td key={c}>{String(r[c]??'')}</td>)}</tr>)}</tbody></table></div>}
-function Shell(){const logout=useAuth(s=>s.logout);return <div className="shell"><aside className="side"><div className="brand">MyFundex Ops</div><nav className="nav"><NavLink to="/">Dashboard</NavLink><NavLink to="/accounts">Accounts</NavLink><NavLink to="/policies">Policies</NavLink><NavLink to="/settings">Settings</NavLink><NavLink to="/audit">Audit</NavLink></nav><button className="btn secondary" onClick={logout}>Sign out</button></aside><main className="main"><Routes><Route path="/" element={<Dashboard/>}/><Route path="/accounts" element={<TablePage path="/admin/accounts" title="Funded accounts" cols={['accountNumber','status','fundedCapital','currentBuyingPower','version','createdAt']}/>}/><Route path="/policies" element={<TablePage path="/admin/policies" title="Policies" cols={['code','name','policyType']}/>}/><Route path="/settings" element={<Settings/>}/><Route path="/audit" element={<TablePage path="/admin/audit" title="Audit trail" cols={['module','entityType','entityId','action','occurredAt','correlationId']}/>}/></Routes></main></div>}
-export default function App(){const user=useAuth(s=>s.user);return <BrowserRouter>{user?<Shell/>:<Routes><Route path="*" element={<Login/>}/></Routes>}</BrowserRouter>}
+import React, { lazy, Suspense } from "react";
+import { BrowserRouter } from "react-router-dom";
+import { useAuth } from "./store";
+const Shell = lazy(() => import("./app/Shell"));
+const Login = lazy(() => import("./features/auth/Login"));
+export default function App() {
+  const user = useAuth((state) => state.user);
+  return (
+    <BrowserRouter>
+      <Suspense fallback={<p role="status">Loading MyFundex�</p>}>
+        {user ? <Shell /> : <Login />}
+      </Suspense>
+    </BrowserRouter>
+  );
+}

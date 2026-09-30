@@ -1,0 +1,74 @@
+using System.IO.Compression;
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+
+namespace MyFundex.MarketData;
+
+public sealed class UpstoxInstrumentSyncService(
+    HttpClient http,
+    MarketDataDbContext db,
+    ILogger<UpstoxInstrumentSyncService> log
+)
+{
+    private const string Url =
+        "https://assets.upstox.com/market-quote/instruments/exchange/NSE.json.gz";
+
+    public async Task SyncAsync(CancellationToken ct)
+    {
+        using var response = await http.GetAsync(Url, HttpCompletionOption.ResponseHeadersRead, ct);
+        response.EnsureSuccessStatusCode();
+        await using var raw = await response.Content.ReadAsStreamAsync(ct);
+        await using var gz = new GZipStream(raw, CompressionMode.Decompress);
+        using var doc = await JsonDocument.ParseAsync(gz, cancellationToken: ct);
+        var existing = await db
+            .Instruments.Where(i => i.ExchangeCode == "NSE" && i.SecurityType == "EQUITY")
+            .ToDictionaryAsync(i => i.InstrumentToken, StringComparer.Ordinal, ct);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var count = 0;
+        foreach (var x in doc.RootElement.EnumerateArray())
+        {
+            if (
+                x.GetProperty("segment").GetString() != "NSE_EQ"
+                || x.GetProperty("instrument_type").GetString() != "EQ"
+            )
+                continue;
+            var key = x.GetProperty("instrument_key").GetString()!;
+            seen.Add(key);
+            existing.TryGetValue(key, out var row);
+            if (row == null)
+            {
+                row = new Instrument
+                {
+                    InstrumentId = MyFundex.BuildingBlocks.Ids.Uuid7.NewGuid(),
+                    InstrumentToken = key,
+                };
+                db.Add(row);
+                existing[key] = row;
+            }
+            row.ExchangeCode = x.GetProperty("exchange").GetString() ?? "NSE";
+            row.Symbol = x.GetProperty("trading_symbol").GetString() ?? "";
+            row.TradingSymbol = row.Symbol;
+            row.Name = x.GetProperty("name").GetString() ?? row.Symbol;
+            row.Isin = x.TryGetProperty("isin", out var isin) ? isin.GetString() : null;
+            row.SecurityType = "EQUITY";
+            row.LotSize = x.TryGetProperty("lot_size", out var lot) ? lot.GetInt32() : 1;
+            row.TickSize =
+                x.TryGetProperty("tick_size", out var tick) && tick.TryGetDecimal(out var tv)
+                    ? tv
+                    : 0.05m;
+            row.IsActive = true;
+            if (++count % 500 == 0)
+                await db.SaveChangesAsync(ct);
+        }
+        await db.SaveChangesAsync(ct);
+        await db
+            .Instruments.Where(i =>
+                i.ExchangeCode == "NSE"
+                && i.SecurityType == "EQUITY"
+                && !seen.Contains(i.InstrumentToken)
+            )
+            .ExecuteUpdateAsync(s => s.SetProperty(i => i.IsActive, false), ct);
+        log.LogInformation("Synced {Count} NSE equity instruments from Upstox", count);
+    }
+}

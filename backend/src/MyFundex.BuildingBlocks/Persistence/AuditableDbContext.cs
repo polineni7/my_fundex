@@ -4,14 +4,32 @@ using MyFundex.BuildingBlocks.Domain;
 
 namespace MyFundex.BuildingBlocks.Persistence;
 
-public abstract class AuditableDbContext(DbContextOptions options, ICurrentActor currentActor) : DbContext(options)
+public abstract class AuditableDbContext(DbContextOptions options, ICurrentActor currentActor)
+    : DbContext(options)
 {
     protected ICurrentActor CurrentActor { get; } = currentActor;
 
-    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        configurationBuilder.Properties<decimal>().HavePrecision(20, 4);
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         ApplyAudit();
-        return base.SaveChangesAsync(cancellationToken);
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
+        SaveChangesAsync(true, cancellationToken);
+
+    public override Task<int> SaveChangesAsync(
+        bool acceptAllChangesOnSuccess,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ApplyAudit();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 
     private void ApplyAudit()
@@ -20,6 +38,11 @@ public abstract class AuditableDbContext(DbContextOptions options, ICurrentActor
         var actor = CurrentActor.ActorId;
         foreach (var entry in ChangeTracker.Entries<EntityBase>())
         {
+            if (
+                entry.Entity is IImmutableRecord
+                && entry.State is EntityState.Modified or EntityState.Deleted
+            )
+                throw new InvalidOperationException("Financial and audit records are append-only.");
             switch (entry.State)
             {
                 case EntityState.Added:
@@ -44,7 +67,9 @@ public abstract class AuditableDbContext(DbContextOptions options, ICurrentActor
         }
     }
 
-    protected static void ConfigureEntity<TEntity>(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<TEntity> b)
+    protected static void ConfigureEntity<TEntity>(
+        Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<TEntity> b
+    )
         where TEntity : EntityBase
     {
         b.HasKey(x => x.Id);

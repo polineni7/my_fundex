@@ -11,3 +11,5 @@
 *.suo
 .vs/
 .idea/
+
+**/.local/
