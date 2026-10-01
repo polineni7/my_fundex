@@ -1,6 +1,6 @@
 import { notify } from "./components/ui/Toasts";
 import { useAuth, getAccessToken } from "./store";
-const API = import.meta.env.VITE_API_URL || "http://localhost:50901/api/v1";
+const API = import.meta.env.VITE_API_URL || "https://localhost:50900/api/v1";
 export async function api(path, options = {}) {
   const { successMessage, ...requestOptions } = options;
   const token = getAccessToken();
