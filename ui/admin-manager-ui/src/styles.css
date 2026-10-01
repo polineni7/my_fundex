@@ -981,3 +981,16 @@ form.card.plan-form {
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     gap: 18px;
 }
+
+.header-breadcrumb {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+.header-breadcrumb [aria-current="page"] {
+    color: var(--text);
+    text-decoration: none;
+    font-weight: 600;
+}

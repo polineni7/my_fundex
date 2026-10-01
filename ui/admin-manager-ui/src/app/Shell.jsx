@@ -124,9 +124,22 @@ export default function Shell() {
             >
               <Menu size={21} />
             </button>
-            <span>
-              Administration <span className="muted"> / Workspace</span>
-            </span>
+            <nav className="header-breadcrumb" aria-label="Breadcrumb">
+              <Link
+                to="/"
+                aria-current={location.pathname === "/" ? "page" : undefined}
+              >
+                Home
+              </Link>
+              {location.pathname !== "/" && (
+                <>
+                  <span aria-hidden="true"> / </span>
+                  <span aria-current="page">
+                    {pageNames[location.pathname] || "Page not found"}
+                  </span>
+                </>
+              )}
+            </nav>
           </div>
           <div className="row">
             <ThemeToggle />
@@ -150,33 +163,24 @@ export default function Shell() {
         </header>
         {profileOpen && <ProfileDialog onClose={() => setProfileOpen(false)} />}
         <main className="main">
-          <div className="page-navigation">
-            <nav aria-label="Breadcrumb">
-              <Link to="/">Home</Link>
+          {location.pathname !== "/" && (
+            <div className="page-navigation">
               {location.pathname !== "/" && (
-                <>
-                  <span aria-hidden="true"> / </span>
-                  <span aria-current="page">
-                    {pageNames[location.pathname] || "Page not found"}
-                  </span>
-                </>
+                <button
+                  className="btn secondary"
+                  onClick={() =>
+                    location.state?.from
+                      ? navigate(location.state.from)
+                      : navigate("/")
+                  }
+                >
+                  {location.state?.from === "/plans"
+                    ? "Back to assessment plan"
+                    : "Back to overview"}
+                </button>
               )}
-            </nav>
-            {location.pathname !== "/" && (
-              <button
-                className="btn secondary"
-                onClick={() =>
-                  location.state?.from
-                    ? navigate(location.state.from)
-                    : navigate("/")
-                }
-              >
-                {location.state?.from === "/plans"
-                  ? "Back to assessment plan"
-                  : "Back to overview"}
-              </button>
-            )}
-          </div>
+            </div>
+          )}
           <Routes>
             <Route path="/users" element={<Users />} />
             <Route path="/operations" element={<Operations />} />
