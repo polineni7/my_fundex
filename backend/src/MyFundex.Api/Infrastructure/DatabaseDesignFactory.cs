@@ -8,9 +8,15 @@ public sealed class DatabaseDesignFactory : IDesignTimeDbContextFactory<DevBoots
 {
     public DevBootstrapDbContext CreateDbContext(string[] args)
     {
-        var connection =
-            Environment.GetEnvironmentVariable("ConnectionStrings__Postgres")
-            ?? "Host=localhost;Database=my_fundex;Username=myfundex;Password=myfundex_dev";
+        var root = Directory.GetCurrentDirectory();
+        var project = Path.Combine(root, "backend", "src", "MyFundex.Api");
+        if (!Directory.Exists(project)) project = root;
+        var configuration = new ConfigurationBuilder().SetBasePath(project)
+            .AddJsonFile("appsettings.json", optional: true)
+            .AddJsonFile("appsettings.Local.json", optional: true)
+            .AddEnvironmentVariables().Build();
+        var connection = configuration.GetConnectionString("Postgres")
+            ?? throw new InvalidOperationException("Configure ConnectionStrings:Postgres before running migrations.");
         var options = new DbContextOptionsBuilder<DevBootstrapDbContext>()
             .UseNpgsql(
                 connection,

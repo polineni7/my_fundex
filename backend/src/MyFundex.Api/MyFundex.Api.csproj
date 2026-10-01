@@ -32,4 +32,5 @@
   <ItemGroup>
     <EmbeddedResource Include="../../../database/006_default_data.sql" LogicalName="MyFundex.DefaultData.sql" />
   </ItemGroup>
+  <ItemGroup><Content Update="appsettings.Local.json" CopyToPublishDirectory="Never" /></ItemGroup>
 </Project>

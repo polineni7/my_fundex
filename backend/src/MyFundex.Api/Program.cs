@@ -26,6 +26,11 @@ using MyFundex.Wallet;
 using MyFundex.Withdrawals;
 
 var builder = WebApplication.CreateBuilder(args);
+if (builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: false)
+        .AddEnvironmentVariables().AddCommandLine(args);
+}
 builder.AddPlatformSecurity();
 var cs = builder.Configuration.GetConnectionString("Postgres")!;
 builder.Services.AddMessaging(builder.Configuration);
