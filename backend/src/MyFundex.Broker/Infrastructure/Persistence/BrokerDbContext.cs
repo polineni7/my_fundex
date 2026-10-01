@@ -24,6 +24,12 @@ public sealed class BrokerDbContext(DbContextOptions<BrokerDbContext> o, ICurren
         ConfigureEntity(m.Entity<BrokerAccount>());
         ConfigureEntity(m.Entity<BrokerEvent>());
         m.Entity<BrokerAccount>().HasIndex(x => x.BrokerAccountId).IsUnique();
+        m.Entity<BrokerAccount>().HasIndex(x => new { x.ProviderCode, x.Environment, x.AccountReference })
+            .IsUnique().HasFilter("\"IsDeleted\" = false AND \"ProtectedCredentials\" IS NOT NULL");
+        m.Entity<BrokerAccount>().HasIndex(x => x.Environment).IsUnique()
+            .HasFilter("\"IsDeleted\" = false AND \"IsActive\" = true AND \"IsDefault\" = true");
+        m.Entity<BrokerAccount>().HasIndex(x => x.UseForMarketData).IsUnique()
+            .HasFilter("\"IsDeleted\" = false AND \"IsActive\" = true AND \"UseForMarketData\" = true");
         m.Entity<BrokerEvent>().HasIndex(x => x.BrokerEventId).IsUnique();
     }
 }

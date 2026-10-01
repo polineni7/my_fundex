@@ -66,7 +66,7 @@ export default function Dashboard() {
             <Card
               t="Capital monitored"
               v={
-                "â‚¹" +
+                "₹" +
                 a
                   .reduce((s, x) => s + Number(x.fundedCapital || 0), 0)
                   .toLocaleString()

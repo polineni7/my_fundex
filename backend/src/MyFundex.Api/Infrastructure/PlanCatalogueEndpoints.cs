@@ -53,6 +53,8 @@ public static class PlanCatalogueEndpoints
                             x.MaxTotalLossPercent,
                             x.MinimumTradingDays,
                             x.MaximumCalendarDays,
+                            x.TradingPeriod,
+                            x.MaximumLeverage,
                         })
                         .ToListAsync(ct);
                     var lookup = stages.ToLookup(x => x.InternalId);
@@ -82,6 +84,9 @@ public static class PlanCatalogueEndpoints
                                     stage.MaxTotalLossPercent,
                                     stage.MinimumTradingDays,
                                     stage.MaximumCalendarDays,
+                                    stage.TradingPeriod,
+                                    stage.MaximumLeverage,
+                                    tradingPeriodLabel = TradingPeriods.Label(stage.TradingPeriod, stage.MaximumCalendarDays),
                                 }),
                         })
                     );

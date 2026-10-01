@@ -129,6 +129,8 @@ public static class LifecycleEndpoints
                         stage.MaxTotalLossPercent,
                         stage.MinimumTradingDays,
                         stage.MaximumCalendarDays,
+                        stage.TradingPeriod,
+                        stage.MaximumLeverage,
                     }
                 ).Take(200).ToListAsync(ct);
                 var ids = attempts
@@ -374,13 +376,13 @@ public static class LifecycleEndpoints
                 LiveInput input,
                 ILiveAccountProvisioner service,
                 IAuditWriter audit,
-                IConfiguration config,
+                IRuntimeSettings settings,
                 CancellationToken ct
             ) =>
             {
-                if (!config.GetValue<bool>("Trading:LiveEnabled"))
+                if (!bool.TryParse(await settings.GetAsync("Trading.LiveEnabled", "GLOBAL", ct), out var enabled) || !enabled)
                     return Results.Problem(
-                        "Live trading is disabled for this deployment.",
+                        "Real trading is disabled in admin runtime settings.",
                         statusCode: 503
                     );
                 var id = await service.ProvisionAsync(

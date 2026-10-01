@@ -670,6 +670,7 @@ if (
     await BootstrapAsync(app.Services);
 app.MapLifecycleEndpoints();
 app.MapPolicyManagement();
+app.MapBrokerSettings();
 app.MapPlanCatalogue();
 app.MapGoogleSignIn();
 app.MapCommercialEndpoints();

@@ -14,6 +14,8 @@ public static class BrokerModule
 {
     public static IServiceCollection AddBrokerModule(this IServiceCollection s, string cs)
     {
+        s.AddScoped<BrokerConfigurationService>();
+        s.AddScoped<IRuntimeSettingSource>(sp => sp.GetRequiredService<BrokerConfigurationService>());
         s.AddDbContext<BrokerDbContext>(o => o.UseNpgsql(cs));
         s.AddHttpClient<UpstoxOrderGateway>();
         s.AddHttpClient<IBrokerVerificationAdapter, UpstoxAccountVerifier>();

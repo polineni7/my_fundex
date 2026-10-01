@@ -28,12 +28,33 @@ public sealed class RiskGuard(RiskDbContext db) : IRiskGuard
             return new(false, "POLICY_MISSING", "No effective trading policy is assigned.");
         foreach (var rule in rules)
         {
-            if (rule.RuleCode is not ("MAX_ORDER_VALUE" or "EQUITY_ONLY"))
+            if (rule.RuleCode is not ("MAX_ORDER_VALUE" or "EQUITY_ONLY" or "ENTRY_TIME_WINDOW"))
                 return new(
                     false,
                     "UNSUPPORTED_POLICY",
                     $"Rule {rule.RuleCode} is not implemented; trading is blocked until it can be evaluated."
                 );
+            if (rule.RuleCode == "ENTRY_TIME_WINDOW")
+            {
+                bool allowed;
+                try { allowed = TradingWindow.Allows(rule.StringValue, request.Side, now); }
+                catch (ArgumentException) { return new(false, "INVALID_POLICY", "The assigned trading window is invalid."); }
+                if (!allowed)
+                {
+                    db.Add(new PolicyViolation
+                    {
+                        ViolationId = Guid.NewGuid(),
+                        FundedAccountInternalId = request.AccountInternalId,
+                        PolicyRuleInternalId = rule.Id,
+                        ObservedValue = now.ToOffset(TimeSpan.FromHours(5.5)).ToString("HH:mm"),
+                        LimitValue = rule.StringValue!,
+                        ActionTaken = "RejectOrder",
+                        OccurredAt = now
+                    });
+                    await db.SaveChangesAsync(ct);
+                    return new(false, rule.RuleCode, "New buy orders are outside the assigned entry window (India time).");
+                }
+            }
             if (rule.RuleCode == "MAX_ORDER_VALUE")
             {
                 if (rule.DecimalValue is null or <= 0)

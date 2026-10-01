@@ -818,3 +818,166 @@ progress {
         scroll-behavior: auto !important;
     }
 }
+
+/* Plan editor: explicit sections, helper text, and review summaries. */
+.plan-guide {
+    display: flex;
+    gap: 28px;
+    flex-wrap: wrap;
+    padding: 18px 22px;
+    background: var(--tint);
+    color: var(--primary);
+    border-radius: 10px;
+    font-size: 13px;
+}
+.plan-form,
+form.card.plan-form {
+    display: block;
+}
+.plan-form fieldset {
+    margin-bottom: 26px;
+    padding: 24px;
+    gap: 22px 26px;
+}
+.section-heading {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 26px;
+}
+.section-heading h2 {
+    margin: 0 0 6px;
+}
+.section-heading p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+}
+.step-number {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    background: var(--tint);
+    color: var(--primary);
+    border-radius: 9px;
+    flex-shrink: 0;
+    font-weight: 700;
+}
+.plan-field .field,
+.plan-field textarea {
+    margin-bottom: 7px;
+}
+.field-help {
+    display: block;
+    color: var(--muted);
+    font-weight: 400;
+    font-size: 11px;
+    line-height: 1.65;
+}
+.optional-label {
+    margin-left: 8px;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 400;
+}
+.full-width {
+    grid-column: 1/-1;
+}
+.form-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    border-top: 1px solid var(--border);
+    padding-top: 20px;
+    margin-top: 22px;
+    font-size: 12px;
+}
+.plan-example {
+    padding: 18px;
+    background: var(--tint);
+    border-radius: 9px;
+    font-size: 12px;
+}
+.plan-example p {
+    margin: 6px 0 0;
+}
+.plan-version {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px;
+    margin-top: 20px;
+}
+.plan-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 22px;
+    margin: 24px 0;
+}
+.plan-summary dt {
+    color: var(--muted);
+    font-size: 11px;
+}
+.plan-summary dd {
+    margin: 7px 0 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+.table-scroll {
+    overflow: auto;
+}
+@media (max-width: 760px) {
+    .plan-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .form-footer {
+        align-items: stretch;
+        flex-direction: column;
+    }
+    .plan-form fieldset {
+        padding: 16px;
+    }
+    .plan-guide {
+        gap: 12px;
+        flex-direction: column;
+    }
+}
+
+.profile-trigger {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: transparent;
+    border: 0;
+    color: var(--text);
+    text-align: left;
+    border-radius: 8px;
+    padding: 6px;
+}
+.profile-dialog {
+    width: min(580px, 94vw);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    background: var(--surface);
+    color: var(--text);
+    max-height: 90vh;
+    overflow: auto;
+}
+.profile-dialog::backdrop {
+    background: #11182788;
+}
+.page-navigation {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 24px;
+    font-size: 12px;
+}
+.connection-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 18px;
+}

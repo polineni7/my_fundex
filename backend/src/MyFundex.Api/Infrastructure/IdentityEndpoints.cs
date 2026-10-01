@@ -97,6 +97,20 @@ public static class IdentityEndpoints
                 return Results.Ok(new { user.Version });
             }
         );
+        me.MapPost("/password", async (ChangePasswordInput input, IdentityDbContext db, ICurrentActor actor, CancellationToken ct) =>
+        {
+            if (string.IsNullOrEmpty(input.CurrentPassword) || string.IsNullOrEmpty(input.NewPassword) ||
+                input.NewPassword.Length < 12 || System.Text.Encoding.UTF8.GetByteCount(input.NewPassword) > 72)
+                return Results.BadRequest(new { message = "Use a new password of at least 12 characters and at most 72 UTF-8 bytes." });
+            var user = await db.Users.SingleAsync(x => x.Id == actor.ActorId, ct);
+            if (string.IsNullOrEmpty(user.PasswordHash) || !BCrypt.Net.BCrypt.Verify(input.CurrentPassword, user.PasswordHash))
+                return Results.BadRequest(new { message = "The current password is incorrect." });
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(input.NewPassword, 12);
+            user.SecurityVersion++;
+            db.Events.Add(new IdentityEvent {UserInternalId=user.Id,EventType="PasswordChanged",Method="SelfService",Succeeded=true});
+            await db.SaveChangesAsync(ct);
+            return Results.NoContent();
+        }).RequireRateLimiting("authentication");
         me.MapPost(
             "/logout-all",
             async (IdentityDbContext db, ICurrentActor actor, CancellationToken ct) =>
@@ -301,3 +315,5 @@ public sealed record CreateIdentityInput(
     string LastName,
     string[] Roles
 );
+
+public sealed record ChangePasswordInput(string CurrentPassword, string NewPassword);

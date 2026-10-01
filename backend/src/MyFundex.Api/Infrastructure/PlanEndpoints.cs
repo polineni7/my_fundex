@@ -22,6 +22,14 @@ public static class PlanEndpoints
                         )
                 )
             );
+        admin.MapGet("/options", async (MyFundex.Risk.RiskDbContext risk, CancellationToken ct) =>
+        {
+            var now = DateTimeOffset.UtcNow;
+            var policies = await risk.PolicySets.AsNoTracking()
+                .Where(p => risk.PolicyVersions.Any(v => v.PolicySetInternalId == p.Id && v.Status == "Active" && v.EffectiveFrom <= now && (v.EffectiveTo == null || v.EffectiveTo > now)))
+                .OrderBy(p => p.Name).Select(p => new { p.PolicyId, p.Name, p.Code }).ToListAsync(ct);
+            return Results.Ok(new { tradingPeriods = TradingPeriods.Options, policies });
+        });
         admin.MapGet(
             "/",
             async (SubscriptionDbContext db, CancellationToken ct) =>
@@ -53,6 +61,20 @@ public static class PlanEndpoints
                         orderby version.VersionNumber descending
                         select new
                         {
+                            stages = db.Stages.Where(s => s.PlanVersionInternalId == version.Id).OrderBy(s => s.StageNumber)
+                                .Select(s => new
+                                {
+                                    s.StageNumber,
+                                    s.Name,
+                                    s.ProfitTargetPercent,
+                                    s.MaxDailyLossPercent,
+                                    s.MaxTotalLossPercent,
+                                    s.MinimumTradingDays,
+                                    s.MaximumCalendarDays,
+                                    s.TradingPeriod,
+                                    s.MaximumLeverage,
+                                    s.PolicySetId
+                                }).ToList(),
                             version.PlanVersionId,
                             version.VersionNumber,
                             version.Version,
@@ -188,11 +210,12 @@ public static class PlanEndpoints
                     return Results.BadRequest(
                         new
                         {
-                            message = "Provide positive capital, a fee in whole paise, and at least one named stage with a policy.",
+                            message = "Provide positive capital, a fee in whole paise, and two or three named stages, each with a policy.",
                         }
                     );
-                await using var transaction = await db.Database.BeginTransactionAsync(ct);
                 foreach (var stage in request.Stages)
+                {
+                    TradingPeriods.Validate(stage.TradingPeriod, stage.MaximumCalendarDays, stage.MaximumLeverage);
                     ChallengeEvaluator.Validate(
                         new(
                             stage.ProfitTargetPercent,
@@ -202,6 +225,8 @@ public static class PlanEndpoints
                             stage.MaximumCalendarDays
                         )
                     );
+                }
+                await using var transaction = await db.Database.BeginTransactionAsync(ct);
                 var next =
                     (
                         await db
@@ -254,6 +279,8 @@ public static class PlanEndpoints
                             MaxTotalLossPercent = stage.MaxTotalLossPercent,
                             MinimumTradingDays = stage.MinimumTradingDays,
                             MaximumCalendarDays = stage.MaximumCalendarDays,
+                            TradingPeriod = stage.TradingPeriod,
+                            MaximumLeverage = stage.MaximumLeverage,
                         }
                     );
                 }
@@ -302,8 +329,10 @@ public sealed record StageRequest(
     decimal ProfitTargetPercent = 8m,
     decimal MaxDailyLossPercent = 5m,
     decimal MaxTotalLossPercent = 10m,
-    int MinimumTradingDays = 5,
-    int? MaximumCalendarDays = null
+    int? MinimumTradingDays = 5,
+    int? MaximumCalendarDays = null,
+    int? TradingPeriod = null,
+    decimal? MaximumLeverage = null
 );
 
 public sealed record EditPlanRequest(string Name, string? Description, long Version);

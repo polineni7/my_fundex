@@ -11,8 +11,10 @@ public sealed class PlanStageDefinition : EntityBase
     public decimal ProfitTargetPercent { get; set; } = 8m;
     public decimal MaxDailyLossPercent { get; set; } = 5m;
     public decimal MaxTotalLossPercent { get; set; } = 10m;
-    public int MinimumTradingDays { get; set; } = 5;
+    public int? MinimumTradingDays { get; set; } = 5;
     public int? MaximumCalendarDays { get; set; }
+    public int? TradingPeriod { get; set; }
+    public decimal? MaximumLeverage { get; set; }
     public Guid StageId { get; set; }
     public long PlanVersionInternalId { get; set; }
     public int StageNumber { get; set; }

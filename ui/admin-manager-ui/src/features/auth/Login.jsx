@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { api } from "../../api";
 import { useAuth } from "../../store";
+import { notify } from "../../components/ui/Toasts";
 import ThemeToggle from "../../components/ui/ThemeToggle";
 export default function Login() {
   const nav = useNavigate(),
@@ -33,6 +34,7 @@ export default function Login() {
       if (!r.user.roles.some((role) => role === "ADMIN" || role === "MANAGER"))
         throw new Error("Administrator or manager access is required.");
       login(r.accessToken, r.user);
+      notify("Welcome back. You are signed in.");
       nav("/");
     } catch (e) {
       setErr(e.message);

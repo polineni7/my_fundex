@@ -4,7 +4,7 @@ public sealed record ChallengeRules(
     decimal ProfitTargetPercent,
     decimal MaxDailyLossPercent,
     decimal MaxTotalLossPercent,
-    int MinimumTradingDays,
+    int? MinimumTradingDays,
     int? MaximumCalendarDays
 );
 
@@ -32,7 +32,7 @@ public static class ChallengeEvaluator
             || rules.MaxDailyLossPercent > 100
             || rules.MaxTotalLossPercent <= 0
             || rules.MaxTotalLossPercent > 100
-            || rules.MinimumTradingDays < 1
+            || rules.MinimumTradingDays < 0
             || rules.MaximumCalendarDays is <= 0
         )
             throw new ArgumentException(
@@ -60,7 +60,7 @@ public static class ChallengeEvaluator
             return new("Failed", "Evaluation period expired.");
         if (progress.RealizedProfit < progress.StartingCapital * rules.ProfitTargetPercent / 100m)
             return new("InProgress", "Profit target not reached.");
-        if (progress.TradingDays < rules.MinimumTradingDays)
+        if (progress.TradingDays < (rules.MinimumTradingDays ?? 0))
             return new("InProgress", "Minimum trading days not reached.");
         if (progress.HasOpenPositions || progress.HasPendingOrders)
             return new(

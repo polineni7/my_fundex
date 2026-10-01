@@ -1,8 +1,11 @@
+import { Link } from "react-router-dom";
 import React, { useEffect, useRef, useState } from "react";
 import { api } from "../../api";
 import { useAuth } from "../../store";
 export default function Operations() {
   const user = useAuth((s) => s.user);
+  const [brokerConnections, setBrokerConnections] = useState([]);
+  const [loadErrors, setLoadErrors] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]),
     [withdrawals, setWithdrawals] = useState([]),
     [accounts, setAccounts] = useState([]),
@@ -33,16 +36,25 @@ export default function Operations() {
   });
   const reference = useRef(null);
   async function refresh() {
-    const data = await Promise.all([
-      api("/admin/lifecycle/subscriptions"),
-      api("/admin/lifecycle/withdrawals"),
-      api("/admin/accounts"),
-      api("/admin/lifecycle/orders"),
-    ]);
-    setSubscriptions(data[0]);
-    setWithdrawals(data[1]);
-    setAccounts(data[2]);
-    setOrders(data[3]);
+    const requests = [
+      ["Assessments", "/admin/lifecycle/subscriptions", setSubscriptions],
+      ["Withdrawals", "/admin/lifecycle/withdrawals", setWithdrawals],
+      ["Accounts", "/admin/accounts", setAccounts],
+      ["Orders", "/admin/lifecycle/orders", setOrders],
+      ["Broker settings", "/admin/broker-settings", setBrokerConnections],
+    ];
+    const results = await Promise.allSettled(
+      requests.map(async ([, path, setter]) => {
+        setter(await api(path));
+      }),
+    );
+    setLoadErrors(
+      results.flatMap((result, i) =>
+        result.status === "rejected"
+          ? [`${requests[i][0]}: ${result.reason.message}`]
+          : [],
+      ),
+    );
   }
   useEffect(() => {
     if (user?.roles?.includes("ADMIN"))
@@ -119,7 +131,22 @@ export default function Operations() {
           Refresh
         </button>
       </div>
+      {loadErrors.map((error) => (
+        <p className="error" role="alert" key={error}>
+          {error}
+        </p>
+      ))}
       {message && <p role="status">{message}</p>}
+      {!accounts.length && (
+        <p className="muted">
+          No funded accounts yet. Accounts appear after an assessment purchase
+          is fulfilled.
+        </p>
+      )}
+      {tab === "Withdrawals" && !withdrawals.length && (
+        <p>No withdrawal requests to review.</p>
+      )}
+      {tab === "Orders" && !orders.length && <p>No orders to reconcile.</p>}
       {tab === "Accounts" && (
         <div className="grid">
           {accounts.map((a) => (
@@ -177,7 +204,7 @@ export default function Operations() {
             verified before allocation.
           </p>
           <label>
-            Completed subscription
+            Completed assessment
             <select
               className="field"
               required
@@ -197,37 +224,48 @@ export default function Operations() {
             </select>
           </label>
           <label>
-            Broker
+            Configured real-trading connection
             <select
-              className="field"
-              value={live.provider}
-              onChange={(e) => setLive({ ...live, provider: e.target.value })}
-            >
-              <option>Upstox</option>
-            </select>
-          </label>
-          <label>
-            Configured credential reference
-            <input
               className="field"
               required
               value={live.credentialKey}
-              onChange={(e) =>
-                setLive({ ...live, credentialKey: e.target.value })
-              }
-            />
+              onChange={(e) => {
+                const item = brokerConnections.find(
+                  (x) =>
+                    x.reference === e.target.value &&
+                    x.environment === "PRODUCTION",
+                );
+                setLive({
+                  ...live,
+                  credentialKey: item?.reference || "",
+                  provider: item?.provider || "",
+                  brokerUserId: item?.brokerUserId || "",
+                });
+              }}
+            >
+              <option value="">Select a configured broker connection</option>
+              {brokerConnections
+                .filter(
+                  (x) =>
+                    x.isActive &&
+                    x.executionSupported &&
+                    x.environment === "PRODUCTION",
+                )
+                .map((x) => (
+                  <option key={x.brokerAccountId} value={x.reference}>
+                    {x.displayName} ({x.provider})
+                  </option>
+                ))}
+            </select>
           </label>
-          <label>
-            Verified broker user ID
-            <input
-              className="field"
-              required
-              value={live.brokerUserId}
-              onChange={(e) =>
-                setLive({ ...live, brokerUserId: e.target.value })
-              }
-            />
-          </label>
+          <Link to="/settings" state={{ from: "/operations" }}>
+            Manage broker setup
+          </Link>
+          {!subscriptions.some((x) => x.status === "Completed") && (
+            <p className="muted">
+              No completed assessments are eligible for live allocation yet.
+            </p>
+          )}
           <button className="btn" disabled={busy}>
             Verify and allocate
           </button>
@@ -343,7 +381,7 @@ export default function Operations() {
             )}
           </label>
           <label>
-            Completed subscription
+            Completed assessment
             <select
               className="field"
               required
@@ -352,7 +390,7 @@ export default function Operations() {
                 setSettlement({ ...settlement, subscriptionId: e.target.value })
               }
             >
-              <option value="">Select matching subscription</option>
+              <option value="">Select matching assessment</option>
               {subscriptions
                 .filter((s) => s.status === "Completed")
                 .map((s) => (

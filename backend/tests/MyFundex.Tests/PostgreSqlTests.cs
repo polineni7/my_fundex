@@ -32,6 +32,38 @@ public sealed class PostgreSqlTests
             .Options;
         await using (var migration = new DevBootstrapDbContext(options, new Actor()))
             await migration.Database.MigrateAsync();
+        var planOptions = new DbContextOptionsBuilder<MyFundex.Subscription.SubscriptionDbContext>()
+            .UseNpgsql(connection).Options;
+        await using (var plans = new MyFundex.Subscription.SubscriptionDbContext(planOptions, new Actor()))
+        {
+            await using var planTransaction = await plans.Database.BeginTransactionAsync();
+            var omitted = new MyFundex.Subscription.PlanStageDefinition
+            {
+                StageId = Guid.NewGuid(),
+                MinimumTradingDays = null,
+                TradingPeriod = null,
+                MaximumLeverage = null
+            };
+            var explicitZero = new MyFundex.Subscription.PlanStageDefinition
+            {
+                StageId = Guid.NewGuid(),
+                MinimumTradingDays = 0,
+                TradingPeriod = 0,
+                MaximumLeverage = 100
+            };
+            plans.AddRange(omitted, explicitZero);
+            await plans.SaveChangesAsync();
+            plans.ChangeTracker.Clear();
+            var persistedNull = await plans.Stages.SingleAsync(s => s.StageId == omitted.StageId);
+            var persistedZero = await plans.Stages.SingleAsync(s => s.StageId == explicitZero.StageId);
+            Assert.Null(persistedNull.MinimumTradingDays);
+            Assert.Null(persistedNull.TradingPeriod);
+            Assert.Null(persistedNull.MaximumLeverage);
+            Assert.Equal(0, persistedZero.MinimumTradingDays);
+            Assert.Equal(0, persistedZero.TradingPeriod);
+            Assert.Equal(100m, persistedZero.MaximumLeverage);
+            await planTransaction.RollbackAsync();
+        }
         var accountOptions = new DbContextOptionsBuilder<AccountsDbContext>()
             .UseNpgsql(connection)
             .Options;
@@ -149,23 +181,27 @@ public sealed class PostgreSqlTests
         );
         await db.Database.MigrateAsync();
         await DefaultDataSeeder.SeedAsync(db, default);
+        var seedVersions = db.Set<MyFundex.Subscription.PlanVersion>().Where(v =>
+            v.PlanVersionId == Guid.Parse("8b97c7e7-dbd6-5c39-ab82-a4c0f2ab3318") ||
+            v.PlanVersionId == Guid.Parse("f6779897-6557-5179-8c1d-8461806bd3ca"));
+        var seedStages = db.Set<MyFundex.Subscription.PlanStageDefinition>()
+            .Where(s => seedVersions.Any(v => v.Id == s.PlanVersionInternalId));
         var memberships = await db.Set<MyFundex.Identity.RolePermission>().CountAsync();
-        var stages = await db.Set<MyFundex.Subscription.PlanStageDefinition>().CountAsync();
+        var stages = await seedStages.CountAsync();
         await DefaultDataSeeder.SeedAsync(db, default);
         Assert.Equal(memberships, await db.Set<MyFundex.Identity.RolePermission>().CountAsync());
         Assert.Equal(
             stages,
-            await db.Set<MyFundex.Subscription.PlanStageDefinition>().CountAsync()
+            await seedStages.CountAsync()
         );
         Assert.Equal(5, stages);
         Assert.True(memberships > 0);
         Assert.False(
-            await db.Set<MyFundex.Subscription.PlanStageDefinition>()
-                .AnyAsync(x => x.PolicySetId == Guid.Empty)
+            await seedStages.AnyAsync(x => x.PolicySetId == Guid.Empty)
         );
         Assert.Equal(
             2,
-            await db.Set<MyFundex.Subscription.PlanVersion>().CountAsync(x => x.Status == "Draft")
+            await seedVersions.CountAsync(x => x.Status == "Draft")
         );
     }
 

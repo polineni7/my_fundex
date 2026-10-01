@@ -42,7 +42,8 @@ public sealed class OrderService(
     ITradingEligibility eligibility,
     IInstrumentCatalogue instruments,
     IConfiguration configuration,
-    LiveRiskMonitor monitor
+    LiveRiskMonitor monitor,
+    IRuntimeSettings? runtimeSettings = null
 )
 {
     public Task<Result<PlaceOrderResult>> PlaceAsync(PlaceOrderCommand c, CancellationToken ct) =>
@@ -61,12 +62,12 @@ public sealed class OrderService(
     {
         if (
             !string.Equals(
-                configuration["Trading:LiveEnabled"],
+                runtimeSettings == null ? configuration["Trading:LiveEnabled"] : await runtimeSettings.GetAsync("Trading.LiveEnabled", "GLOBAL", ct),
                 "true",
                 StringComparison.OrdinalIgnoreCase
             )
         )
-            return Result<PlaceOrderResult>.Fail("Real trading is disabled for this deployment.");
+            return Result<PlaceOrderResult>.Fail("Real trading is disabled in admin runtime settings.");
         var error = OrderValidation.Validate(c);
         if (error != null)
             return Result<PlaceOrderResult>.Fail(error);

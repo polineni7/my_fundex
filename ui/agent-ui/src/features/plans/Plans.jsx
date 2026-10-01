@@ -60,7 +60,11 @@ export default function Plans() {
           </button>
         ))}
       </div>
-      <p>The assessment fee pays for a simulated trading assessment. Passing makes you eligible for contract review; it does not guarantee employment, a contract, income, or live trading access.</p>
+      <p>
+        The assessment fee pays for a simulated trading assessment. Passing
+        makes you eligible for contract review; it does not guarantee
+        employment, a contract, income, or live trading access.
+      </p>
       {loading && <p role="status">Loading plans…</p>}
       {error && <p role="alert">{error}</p>}
       {message && <p role="status">{message}</p>}
@@ -107,15 +111,18 @@ export default function Plans() {
                   ["Daily loss limit", "maxDailyLossPercent", "%"],
                   ["Total loss limit", "maxTotalLossPercent", "%"],
                   ["Minimum trading days", "minimumTradingDays", " days"],
-                  ["Trading period", "maximumCalendarDays", " days"],
+                  ["Trading period", "tradingPeriodLabel", ""],
+                  ["Maximum leverage ceiling", "maximumLeverage", ""],
                 ].map(([label, field, suffix]) => (
                   <tr key={field}>
                     <th>{label}</th>
                     {plan.stages.map((stage) => (
                       <td key={stage.stageNumber}>
-                        {stage[field] === null
-                          ? "Unlimited"
-                          : `${stage[field]}${suffix}`}
+                        {stage[field] == null
+                          ? "Not specified"
+                          : field === "maximumLeverage"
+                            ? `1:${stage[field]}`
+                            : `${stage[field]}${suffix}`}
                       </td>
                     ))}
                   </tr>
@@ -123,11 +130,18 @@ export default function Plans() {
               </tbody>
             </table>
           </div>
+          <p className="muted">
+            Leverage is a ceiling. Available buying power also depends on the
+            execution model and broker limits.
+          </p>
           <footer>
             <div>
               <span>FUNDED REWARD SHARE</span>
               <strong>{plan.rewardSharePercent}%</strong>
-              <p>Funded loss limits: {plan.fundedDailyLossPercent}% daily · {plan.fundedTotalLossPercent}% total</p>
+              <p>
+                Funded loss limits: {plan.fundedDailyLossPercent}% daily ·{" "}
+                {plan.fundedTotalLossPercent}% total
+              </p>
             </div>
             <button
               className="btn"

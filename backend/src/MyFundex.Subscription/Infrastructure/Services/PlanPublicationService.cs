@@ -25,6 +25,7 @@ public sealed class PlanPublicationService(
             throw new ArgumentException("A plan requires two or three stages.");
         foreach (var stage in stages)
         {
+            TradingPeriods.Validate(stage.TradingPeriod, stage.MaximumCalendarDays, stage.MaximumLeverage);
             ChallengeEvaluator.Validate(
                 new(
                     stage.ProfitTargetPercent,

@@ -9,7 +9,8 @@ public sealed class RuntimeSettings(
     ConfigurationDbContext db,
     IMemoryCache cache,
     IConfiguration configuration,
-    IAuditWriter audit
+    IAuditWriter audit,
+    IEnumerable<IRuntimeSettingSource> sources
 ) : IRuntimeSettings
 {
     public static bool IsSecret(string key) =>
@@ -19,6 +20,8 @@ public sealed class RuntimeSettings(
 
     public async Task<string?> GetAsync(string key, string env, CancellationToken ct)
     {
+        var source = sources.FirstOrDefault(x => x.Handles(key));
+        if (source != null) return await source.GetAsync(key, ct);
         if (IsSecret(key))
             return configuration[key.Replace('.', ':')];
         var cacheKey = $"cfg:{env}:{key}";
@@ -51,6 +54,8 @@ public sealed class RuntimeSettings(
             || category.Length > 100
         )
             throw new ArgumentException("Invalid setting.");
+        if (key.StartsWith("Broker.", StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("Use the Broker setup form to manage broker connections.");
         if (IsSecret(key))
             throw new ArgumentException(
                 "Secrets must be configured through environment variables or a secret store."

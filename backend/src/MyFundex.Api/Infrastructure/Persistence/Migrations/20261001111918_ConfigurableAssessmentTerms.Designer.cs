@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MyFundex.Api.Infrastructure;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MyFundex.Api.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(DevBootstrapDbContext))]
-    partial class DevBootstrapDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261001111918_ConfigurableAssessmentTerms")]
+    partial class ConfigurableAssessmentTerms
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -115,10 +118,6 @@ namespace MyFundex.Api.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("BrokerAccountId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("BrokerUserId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamptz");
 
@@ -131,10 +130,6 @@ namespace MyFundex.Api.Infrastructure.Persistence.Migrations
                     b.Property<long?>("DeletedBy")
                         .HasColumnType("bigint");
 
-                    b.Property<string>("DisplayName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<string>("Environment")
                         .IsRequired()
                         .HasColumnType("text");
@@ -142,30 +137,18 @@ namespace MyFundex.Api.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
-                    b.Property<bool>("IsDefault")
-                        .HasColumnType("boolean");
-
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
-
-                    b.Property<string>("ProtectedCredentials")
-                        .HasColumnType("text");
 
                     b.Property<string>("ProviderCode")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<DateTimeOffset?>("SessionExpiresAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("timestamptz");
 
                     b.Property<long?>("UpdatedBy")
                         .HasColumnType("bigint");
-
-                    b.Property<bool>("UseForMarketData")
-                        .HasColumnType("boolean");
 
                     b.Property<long>("Version")
                         .IsConcurrencyToken()
@@ -175,18 +158,6 @@ namespace MyFundex.Api.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("BrokerAccountId")
                         .IsUnique();
-
-                    b.HasIndex("Environment")
-                        .IsUnique()
-                        .HasFilter("\"IsDeleted\" = false AND \"IsActive\" = true AND \"IsDefault\" = true");
-
-                    b.HasIndex("UseForMarketData")
-                        .IsUnique()
-                        .HasFilter("\"IsDeleted\" = false AND \"IsActive\" = true AND \"UseForMarketData\" = true");
-
-                    b.HasIndex("ProviderCode", "Environment", "AccountReference")
-                        .IsUnique()
-                        .HasFilter("\"IsDeleted\" = false AND \"ProtectedCredentials\" IS NOT NULL");
 
                     b.ToTable("Accounts", "fundex_broker");
                 });

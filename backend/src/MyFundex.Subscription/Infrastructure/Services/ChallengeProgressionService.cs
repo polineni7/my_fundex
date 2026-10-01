@@ -5,21 +5,22 @@ namespace MyFundex.Subscription;
 
 public sealed class EvaluationTermsReader(SubscriptionDbContext db) : IEvaluationTermsReader
 {
-    public Task<EvaluationTerms?> GetAsync(Guid accountId, CancellationToken ct) =>
-        (
+    public async Task<EvaluationTerms?> GetAsync(Guid accountId, CancellationToken ct)
+    {
+        var data = await (
             from attempt in db.Set<ChallengeAttempt>().AsNoTracking()
             join stage in db.Stages.AsNoTracking() on attempt.StageInternalId equals stage.Id
             where attempt.AccountId == accountId
-            select new EvaluationTerms(
-                stage.StartingCapital,
-                stage.ProfitTargetPercent,
-                stage.MaxDailyLossPercent,
-                stage.MaxTotalLossPercent,
-                stage.MinimumTradingDays,
-                stage.MaximumCalendarDays,
-                attempt.StartedAt
-            )
+            select new { Stage = stage, attempt.StartedAt }
         ).SingleOrDefaultAsync(ct);
+        if (data == null) return null;
+        var definition = data.Stage;
+        return new EvaluationTerms(definition.StartingCapital, definition.ProfitTargetPercent,
+            definition.MaxDailyLossPercent, definition.MaxTotalLossPercent, definition.MinimumTradingDays ?? 0,
+            TradingPeriods.CalendarDays(definition.TradingPeriod, definition.MaximumCalendarDays, data.StartedAt),
+            data.StartedAt);
+    }
+
 }
 
 public sealed class ChallengeProgressionService(

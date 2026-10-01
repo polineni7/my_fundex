@@ -1,3 +1,5 @@
+import ProfileDialog from "../components/ui/ProfileDialog";
+import Policies from "../features/policies/Policies";
 import Users from "../features/identity/Users";
 import Operations from "../features/lifecycle/Operations";
 import Plans from "../features/plans/Plans";
@@ -17,12 +19,32 @@ import {
   X,
 } from "lucide-react";
 import ThemeToggle from "../components/ui/ThemeToggle";
-import { NavLink, Route, Routes } from "react-router-dom";
+import {
+  Link,
+  NavLink,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import { useAuth } from "../store";
 import TablePage from "../components/tables/RecordsPage";
 import Settings from "../features/settings/Settings";
 import Dashboard from "../features/dashboard/Dashboard";
 export default function Shell() {
+  const [profileOpen, setProfileOpen] = useState(false);
+  const location = useLocation(),
+    navigate = useNavigate();
+  const pageNames = {
+    "/": "Overview",
+    "/plans": "Assessment plans",
+    "/policies": "Risk policies",
+    "/operations": "Lifecycle management",
+    "/users": "Users and access",
+    "/accounts": "Funded accounts",
+    "/settings": "Settings",
+    "/audit": "Audit history",
+  };
   const [menuOpen, setMenuOpen] = useState(false);
   const user = useAuth((s) => s.user);
   const logout = useAuth((s) => s.logout);
@@ -109,18 +131,52 @@ export default function Shell() {
           <div className="row">
             <ThemeToggle />
             <span className="header-divider" />
-            <span className="avatar">
-              {(user?.firstName || user?.email || "A")
-                .slice(0, 1)
-                .toUpperCase()}
-            </span>
-            <div className="profile-label">
-              <strong>{user?.firstName || "Team member"}</strong>
-              <small>{user?.roles?.join(" · ")}</small>
-            </div>
+            <button
+              className="profile-trigger"
+              aria-label="Open my profile"
+              onClick={() => setProfileOpen(true)}
+            >
+              <span className="avatar">
+                {(user?.firstName || user?.email || "A")
+                  .slice(0, 1)
+                  .toUpperCase()}
+              </span>
+              <div className="profile-label">
+                <strong>{user?.firstName || "Team member"}</strong>
+                <small>{user?.roles?.join(" · ")}</small>
+              </div>
+            </button>
           </div>
         </header>
+        {profileOpen && <ProfileDialog onClose={() => setProfileOpen(false)} />}
         <main className="main">
+          <div className="page-navigation">
+            <nav aria-label="Breadcrumb">
+              <Link to="/">Home</Link>
+              {location.pathname !== "/" && (
+                <>
+                  <span aria-hidden="true"> / </span>
+                  <span aria-current="page">
+                    {pageNames[location.pathname] || "Page not found"}
+                  </span>
+                </>
+              )}
+            </nav>
+            {location.pathname !== "/" && (
+              <button
+                className="btn secondary"
+                onClick={() =>
+                  location.state?.from
+                    ? navigate(location.state.from)
+                    : navigate("/")
+                }
+              >
+                {location.state?.from === "/plans"
+                  ? "Back to assessment plan"
+                  : "Back to overview"}
+              </button>
+            )}
+          </div>
           <Routes>
             <Route path="/users" element={<Users />} />
             <Route path="/operations" element={<Operations />} />
@@ -145,16 +201,7 @@ export default function Shell() {
                 />
               }
             />
-            <Route
-              path="/policies"
-              element={
-                <TablePage
-                  path="/admin/policies"
-                  title="Policies"
-                  cols={["code", "name", "policyType"]}
-                />
-              }
-            />
+            <Route path="/policies" element={<Policies />} />
             <Route path="/settings" element={<Settings />} />
             <Route
               path="/audit"
@@ -171,6 +218,15 @@ export default function Shell() {
                     "correlationId",
                   ]}
                 />
+              }
+            />
+            <Route
+              path="*"
+              element={
+                <section className="card">
+                  <h1>Page not found</h1>
+                  <Link to="/">Return to overview</Link>
+                </section>
               }
             />
           </Routes>
