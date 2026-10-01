@@ -147,7 +147,7 @@ export default function Plans() {
           </select>
         </label>
         {selected && canWrite && (
-          <form onSubmit={createVersion}>
+          <form className="form-grid" onSubmit={createVersion}>
             <label>
               Path
               <select
@@ -257,13 +257,13 @@ export default function Plans() {
         {versions.map((item) => (
           <article className="card" key={item.planVersionId}>
             <h3>
-              Version {item.versionNumber} · {item.path} · {item.status}
+              Version {item.versionNumber} Â· {item.path} Â· {item.status}
             </h3>
             <p>
-              Capital ₹{item.challengeCapital} · Fee ₹{item.registrationFee} ·
-              Reward share {item.rewardSharePercent}% · Tax withholding{" "}
-              {item.taxWithholdingPercent}% · Other deductions{" "}
-              {item.otherDeductionPercent}%
+              Capital â‚¹{item.challengeCapital} Â· Fee â‚¹
+              {item.registrationFee} Â· Reward share {item.rewardSharePercent}%
+              Â· Tax withholding {item.taxWithholdingPercent}% Â· Other
+              deductions {item.otherDeductionPercent}%
             </p>
             {canWrite && item.status === "Draft" && (
               <button
