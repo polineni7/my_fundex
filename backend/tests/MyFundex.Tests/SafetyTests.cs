@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using MyFundex.Api.Infrastructure;
 using MyFundex.BuildingBlocks.Abstractions;
 using MyFundex.Contracts;
@@ -82,8 +83,14 @@ public sealed class SafetyTests
             null!,
             null!,
             null!,
-            null!,
             new Actor(),
+            null!,
+            null!,
+            new Microsoft.Extensions.Configuration.ConfigurationBuilder()
+                .AddInMemoryCollection(
+                    new Dictionary<string, string?> { ["Trading:LiveEnabled"] = "true" }
+                )
+                .Build(),
             null!
         );
         var result = await service.PlaceAsync(command, default);

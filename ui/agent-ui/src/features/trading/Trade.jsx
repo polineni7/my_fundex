@@ -84,6 +84,10 @@ export default function Trade() {
   return (
     <div>
       <h1>Trade</h1>
+      <p>
+        Paper orders simulate fills at market quotes; limit orders wait for their price. Real trading
+        uses limit orders and broker-confirmed fills.
+      </p>
       <div className="grid">
         <div className="card">
           <label>Account</label>
@@ -139,7 +143,7 @@ export default function Trade() {
             onChange={(e) => setForm({ ...form, side: e.target.value })}
           >
             <option>BUY</option>
-            <option disabled>SELL</option>
+            <option>SELL</option>
           </select>
           <input
             className="field"

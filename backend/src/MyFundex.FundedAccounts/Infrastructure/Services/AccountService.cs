@@ -25,7 +25,8 @@ public sealed class AccountService(AccountsDbContext db)
                 x.Version,
                 x.TradingMode,
                 x.BrokerCredentialKey,
-                x.BrokerProvider
+                x.BrokerProvider,
+                x.SubscriptionInternalId
             ))
             .SingleOrDefaultAsync(ct);
 

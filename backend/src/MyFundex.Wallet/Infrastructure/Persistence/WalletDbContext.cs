@@ -19,6 +19,14 @@ public sealed class WalletDbContext(DbContextOptions<WalletDbContext> o, ICurren
     public static void ConfigureModel(ModelBuilder m)
     {
         m.HasDefaultSchema("fundex_wallet");
+        ConfigureEntity(m.Entity<WithdrawalHold>());
+        m.Entity<WithdrawalHold>().ToTable("WithdrawalHolds", "myfund_prod_wallet");
+        m.Entity<WithdrawalHold>().HasIndex(x => x.WithdrawalId).IsUnique();
+        m.Entity<LedgerEntry>()
+            .HasOne(x => x.Transaction)
+            .WithMany()
+            .HasForeignKey(x => x.TransactionInternalId)
+            .OnDelete(DeleteBehavior.Restrict);
         ConfigureEntity(m.Entity<WalletAccount>());
         ConfigureEntity(m.Entity<LedgerTransaction>());
         ConfigureEntity(m.Entity<LedgerEntry>());

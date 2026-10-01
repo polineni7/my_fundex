@@ -14,6 +14,10 @@ public static class SubscriptionModule
         s.AddDbContext<SubscriptionDbContext>(o => o.UseNpgsql(cs));
         s.AddScoped<IPaidSubscriptionActivator, PaidSubscriptionActivator>();
         s.AddScoped<PlanPublicationService>();
+        s.AddScoped<IEvaluationTermsReader, EvaluationTermsReader>();
+        s.AddScoped<ChallengeProgressionService>();
+        s.AddScoped<ILiveEntitlementReader, LiveEntitlementReader>();
+        s.AddScoped<ILiveRiskTermsReader, LiveRiskTermsReader>();
         s.AddScoped<SubscriptionPurchaseService>();
         s.AddScoped<ITradingEligibility, TradingEligibilityService>();
         return s;

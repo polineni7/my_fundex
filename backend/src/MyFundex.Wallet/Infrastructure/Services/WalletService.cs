@@ -60,7 +60,12 @@ public sealed class WalletService(WalletDbContext db) : IWalletReader, IWalletLe
         {
             var posted = await db
                 .Entries.AsNoTracking()
-                .SingleAsync(x => x.TransactionInternalId == existing.Id, ct);
+                .SingleAsync(
+                    x =>
+                        x.TransactionInternalId == existing.Id
+                        && x.LedgerAccount == "TraderPayable",
+                    ct
+                );
             if (posted.Amount != amount)
                 throw new ArgumentException("Settlement reference has a different amount.");
             return;
@@ -84,6 +89,17 @@ public sealed class WalletService(WalletDbContext db) : IWalletReader, IWalletLe
                 WalletInternalId = w.Id,
                 TransactionInternalId = t.Id,
                 Direction = "Credit",
+                Amount = amount,
+            }
+        );
+        db.Add(
+            new LedgerEntry
+            {
+                EntryId = Guid.NewGuid(),
+                WalletInternalId = w.Id,
+                TransactionInternalId = t.Id,
+                LedgerAccount = "PlatformSettlement",
+                Direction = "Debit",
                 Amount = amount,
             }
         );

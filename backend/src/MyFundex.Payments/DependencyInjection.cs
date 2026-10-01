@@ -11,6 +11,7 @@ public static class PaymentsModule
     public static IServiceCollection AddPaymentsModule(this IServiceCollection s, string cs)
     {
         s.AddHttpClient<RazorpayGateway>();
+        s.AddHttpClient<MyFundex.Contracts.IPayoutGateway, RazorpayPayoutGateway>();
         s.AddDbContext<PaymentsDbContext>(o => o.UseNpgsql(cs));
         return s;
     }

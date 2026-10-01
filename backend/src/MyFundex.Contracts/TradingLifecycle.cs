@@ -33,3 +33,18 @@ public interface IOrderCancellationGateway
 {
     Task<BrokerCancellation> CancelAsync(BrokerOrderReference order, CancellationToken ct);
 }
+
+public sealed record TradableInstrument(
+    string Token,
+    string Symbol,
+    string Exchange,
+    string SecurityType,
+    decimal TickSize,
+    int LotSize
+);
+
+public interface IInstrumentCatalogue
+{
+    Task<TradableInstrument?> GetAsync(string token, CancellationToken ct);
+    Task<bool> IsSessionOpenAsync(string exchange, CancellationToken ct);
+}

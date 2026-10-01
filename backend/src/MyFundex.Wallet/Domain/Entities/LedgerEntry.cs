@@ -9,8 +9,10 @@ namespace MyFundex.Wallet;
 
 public sealed class LedgerEntry : EntityBase, IImmutableRecord
 {
+    public string LedgerAccount { get; set; } = "TraderPayable";
     public Guid EntryId { get; set; }
     public long WalletInternalId { get; set; }
+    public LedgerTransaction? Transaction { get; set; }
     public long TransactionInternalId { get; set; }
     public string Direction { get; set; } = "Credit";
     public decimal Amount { get; set; }

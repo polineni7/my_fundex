@@ -22,6 +22,10 @@ public sealed class AccountsDbContext(DbContextOptions<AccountsDbContext> o, ICu
         ConfigureEntity(m.Entity<FundedAccount>());
         ConfigureEntity(m.Entity<CapitalAllocation>());
         ConfigureEntity(m.Entity<AccountStatusHistory>());
+        m.Entity<FundedAccount>()
+            .HasIndex(x => new { x.BrokerProvider, x.BrokerUserId })
+            .IsUnique()
+            .HasFilter("\"BrokerUserId\" IS NOT NULL");
         m.Entity<FundedAccount>().HasIndex(x => x.ProvisioningId).IsUnique();
         m.Entity<FundedAccount>().HasIndex(x => x.AccountId).IsUnique();
         m.Entity<FundedAccount>()

@@ -10,6 +10,7 @@ public static class MarketDataModule
 {
     public static IServiceCollection AddMarketDataModule(this IServiceCollection s, string cs)
     {
+        s.AddScoped<MyFundex.Contracts.IInstrumentCatalogue, InstrumentCatalogue>();
         s.AddDbContext<MarketDataDbContext>(o => o.UseNpgsql(cs));
         return s;
     }

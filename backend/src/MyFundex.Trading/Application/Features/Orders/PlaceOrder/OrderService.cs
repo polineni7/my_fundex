@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using MyFundex.BuildingBlocks.Abstractions;
 using MyFundex.BuildingBlocks.Results;
 using MyFundex.Contracts;
@@ -34,24 +35,46 @@ public static class OrderValidation
 public sealed class OrderService(
     TradingDbContext db,
     IFundedAccountReader accounts,
-    IFundedAccountCapitalService capital,
     IRiskGuard risk,
     IBrokerOrderGateway broker,
     IMarketQuoteProvider quotes,
     ICurrentActor actor,
-    ITradingEligibility eligibility
+    ITradingEligibility eligibility,
+    IInstrumentCatalogue instruments,
+    IConfiguration configuration,
+    LiveRiskMonitor monitor
 )
 {
-    public async Task<Result<PlaceOrderResult>> PlaceAsync(
+    public Task<Result<PlaceOrderResult>> PlaceAsync(PlaceOrderCommand c, CancellationToken ct) =>
+        PlaceCoreAsync(c, false, ct);
+
+    internal Task<Result<PlaceOrderResult>> LiquidateAsync(
         PlaceOrderCommand c,
+        CancellationToken ct
+    ) => PlaceCoreAsync(c, true, ct);
+
+    private async Task<Result<PlaceOrderResult>> PlaceCoreAsync(
+        PlaceOrderCommand c,
+        bool liquidation,
         CancellationToken ct
     )
     {
+        if (
+            !string.Equals(
+                configuration["Trading:LiveEnabled"],
+                "true",
+                StringComparison.OrdinalIgnoreCase
+            )
+        )
+            return Result<PlaceOrderResult>.Fail("Real trading is disabled for this deployment.");
         var error = OrderValidation.Validate(c);
         if (error != null)
             return Result<PlaceOrderResult>.Fail(error);
         var account = await accounts.GetByPublicIdAsync(c.AccountId, ct);
-        if (account == null || actor.ActorId <= 0 || account.UserId != actor.ActorId)
+        if (
+            account == null
+            || !liquidation && (actor.ActorId <= 0 || account.UserId != actor.ActorId)
+        )
             return Result<PlaceOrderResult>.Fail("Account not found.");
         var existing = await db
             .Orders.AsNoTracking()
@@ -73,21 +96,42 @@ public sealed class OrderService(
                 new(existing.OrderId, existing.Status, existing.BrokerOrderId)
             );
         }
-        if (account.Status != "Active")
+        if (!liquidation && account.Status != "Active")
             return Result<PlaceOrderResult>.Fail("Funded account is not active.");
         var access = await eligibility.CheckAsync(
             account.AccountId,
-            actor.ActorId,
+            account.UserId,
             account.TradingMode,
             ct
         );
-        if (!access.Allowed)
+        if (!liquidation && !access.Allowed)
             return Result<PlaceOrderResult>.Fail(access.Reason ?? "Trading is unavailable.");
-        // Until sell-side inventory reservations and execution reconciliation are implemented, fail closed.
-        if (c.Side == "SELL")
+        if (account.TradingMode != "Funded")
             return Result<PlaceOrderResult>.Fail(
-                "Selling requires inventory reservation and reconciliation, which are not enabled yet."
+                "Use the paper trading engine for evaluation orders."
             );
+        // Live limit orders cap the maximum reserved principal. Unbounded market orders are not accepted.
+        if (c.OrderType != "LIMIT")
+            return Result<PlaceOrderResult>.Fail("Real trading currently requires a limit price.");
+        var instrument = await instruments.GetAsync(c.InstrumentToken, ct);
+        if (
+            instrument == null
+            || instrument.SecurityType != "EQUITY"
+            || !await instruments.IsSessionOpenAsync(instrument.Exchange, ct)
+        )
+            return Result<PlaceOrderResult>.Fail(
+                "Select an active equity during its configured trading session."
+            );
+        if (
+            instrument.TickSize <= 0
+            || c.Price!.Value % instrument.TickSize != 0
+            || instrument.LotSize <= 0
+            || c.Quantity % instrument.LotSize != 0
+        )
+            return Result<PlaceOrderResult>.Fail(
+                "Order price or quantity does not match the instrument tick and lot size."
+            );
+        c = c with { Symbol = instrument.Symbol };
         var quote = await quotes.GetLtpAsync(c.InstrumentToken, ct);
         if (quote is null or <= 0)
             return Result<PlaceOrderResult>.Fail("Current market price is unavailable.");
@@ -105,11 +149,12 @@ public sealed class OrderService(
             ),
             ct
         );
-        if (!check.Allowed)
+        if (!liquidation && !check.Allowed)
             return Result<PlaceOrderResult>.Fail(check.Message ?? "Risk rejected the order.");
         var order = new Order
         {
             OrderId = Guid.NewGuid(),
+            IsLiquidation = liquidation,
             AccountId = account.AccountId,
             FundedAccountInternalId = account.InternalId,
             InstrumentToken = c.InstrumentToken,
@@ -126,18 +171,56 @@ public sealed class OrderService(
             CorrelationId = Guid.NewGuid(),
             Status = "PendingReservation",
         };
-        // Persist intent before moving capital. A crash leaves an observable intent for reconciliation.
-        db.Add(order);
-        await db.SaveChangesAsync(ct);
-        if (!await capital.TryReserveAsync(account.InternalId, value, account.Version, ct))
+        if (!liquidation)
+            await monitor.CheckAsync(account.AccountId, ct);
+        var book = await db.Set<LiveBook>()
+            .SingleOrDefaultAsync(x => x.AccountId == account.AccountId, ct);
+        if (book == null)
         {
-            order.Status = "RiskRejected";
-            await db.SaveChangesAsync(ct);
-            return Result<PlaceOrderResult>.Fail(
-                "Buying power changed or is insufficient. Refresh and retry."
-            );
+            if (await db.Orders.AnyAsync(x => x.AccountId == account.AccountId, ct))
+                return Result<PlaceOrderResult>.Fail(
+                    "Existing trading history requires ledger reconciliation."
+                );
+            book = new LiveBook { AccountId = account.AccountId, Cash = account.FundedCapital };
+            db.Add(book);
         }
+        if (book.Status != "Active" && !(liquidation && book.Status == "Closing"))
+            return Result<PlaceOrderResult>.Fail("Account is awaiting capital reconciliation.");
+        if (liquidation && (c.Side != "SELL" || book.CloseRequestId == null))
+            return Result<PlaceOrderResult>.Fail("A liquidation request is required.");
+        var position = await db.Set<LivePosition>()
+            .SingleOrDefaultAsync(
+                x => x.AccountId == account.AccountId && x.InstrumentToken == c.InstrumentToken,
+                ct
+            );
+        if (c.Side == "BUY")
+        {
+            if (book.Cash - book.ReservedCash < value)
+                return Result<PlaceOrderResult>.Fail("Insufficient buying power.");
+            book.ReservedCash += value;
+            order.ReservedCash = value;
+            if (position == null)
+            {
+                position = new LivePosition
+                {
+                    AccountId = account.AccountId,
+                    InstrumentToken = c.InstrumentToken,
+                    Symbol = c.Symbol,
+                };
+                db.Add(position);
+            }
+        }
+        else
+        {
+            if (position == null || position.Quantity - position.ReservedQuantity < c.Quantity)
+                return Result<PlaceOrderResult>.Fail("Insufficient equity inventory.");
+            position.ReservedQuantity += c.Quantity;
+            db.Entry(book).Property(x => x.Cash).IsModified = true;
+        }
+        order.UsesLiveBook = true;
         order.Status = "PendingSubmission";
+        db.Add(order);
+        // The order intent and its capital/inventory reservation commit together before the broker call.
         await db.SaveChangesAsync(ct);
         BrokerOrderResponse response;
         try

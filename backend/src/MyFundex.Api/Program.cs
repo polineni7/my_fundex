@@ -30,7 +30,12 @@ builder.AddPlatformSecurity();
 var cs = builder.Configuration.GetConnectionString("Postgres")!;
 builder.Services.AddMessaging(builder.Configuration);
 if (builder.Configuration.GetValue<bool>("Workers:Enabled", true))
+{
     builder.Services.AddHostedService<PaymentFulfilmentWorker>();
+    builder.Services.AddHostedService<ChallengeWorker>();
+    builder.Services.AddHostedService<FinancialWorker>();
+    builder.Services.AddHostedService<ChallengeMailWorker>();
+}
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentActor, CurrentActor>();
 builder.Services.AddSingleton<JwtTokenService>();
@@ -216,24 +221,52 @@ api.MapGet(
 );
 api.MapGet(
     "/accounts",
-    async (AccountsDbContext db, ICurrentActor actor, CancellationToken ct) =>
-        Results.Ok(
-            await db
-                .Accounts.AsNoTracking()
-                .Where(x => x.UserInternalId == actor.ActorId)
-                .Select(x => new
-                {
-                    x.AccountId,
-                    x.AccountNumber,
-                    x.TradingMode,
-                    x.BrokerProvider,
-                    x.Status,
-                    x.FundedCapital,
-                    x.CurrentBuyingPower,
-                    x.CurrencyCode,
-                })
-                .ToListAsync(ct)
-        )
+    async (
+        AccountsDbContext db,
+        TradingDbContext trading,
+        ICurrentActor actor,
+        CancellationToken ct
+    ) =>
+    {
+        var accounts = await db
+            .Accounts.AsNoTracking()
+            .Where(x => x.UserInternalId == actor.ActorId)
+            .OrderByDescending(x => x.Id)
+            .Take(200)
+            .ToListAsync(ct);
+        var ids = accounts.Select(x => x.AccountId).ToArray();
+        var paper = await trading
+            .Set<PaperBook>()
+            .AsNoTracking()
+            .Where(x => ids.Contains(x.AccountId))
+            .ToDictionaryAsync(x => x.AccountId, ct);
+        var live = await trading
+            .Set<LiveBook>()
+            .AsNoTracking()
+            .Where(x => ids.Contains(x.AccountId))
+            .ToDictionaryAsync(x => x.AccountId, ct);
+        return Results.Ok(
+            accounts.Select(x => new
+            {
+                x.AccountId,
+                x.AccountNumber,
+                x.TradingMode,
+                x.BrokerProvider,
+                status = x.Status != "Active" ? x.Status
+                : paper.TryGetValue(x.AccountId, out var paperStatus) ? paperStatus.Status
+                : live.TryGetValue(x.AccountId, out var liveStatus) ? liveStatus.Status
+                : x.Status,
+                x.FundedCapital,
+                currentBuyingPower = x.TradingMode == "Evaluation"
+                && paper.TryGetValue(x.AccountId, out var p)
+                    ? p.Cash - p.ReservedCash
+                : x.TradingMode == "Funded" && live.TryGetValue(x.AccountId, out var l)
+                    ? l.Cash - l.ReservedCash
+                : x.CurrentBuyingPower,
+                x.CurrencyCode,
+            })
+        );
+    }
 );
 api.MapGet(
     "/market/instruments",
@@ -279,9 +312,19 @@ api.MapGet(
 );
 api.MapPost(
     "/orders",
-    async (PlaceOrderCommand c, OrderService svc, CancellationToken ct) =>
+    async (
+        PlaceOrderCommand c,
+        OrderService svc,
+        PaperTradingEngine paper,
+        IFundedAccountReader accounts,
+        CancellationToken ct
+    ) =>
     {
-        var r = await svc.PlaceAsync(c, ct);
+        var account = await accounts.GetByPublicIdAsync(c.AccountId, ct);
+        var r =
+            account?.TradingMode == "Evaluation"
+                ? await paper.PlaceAsync(c, ct)
+                : await svc.PlaceAsync(c, ct);
         return r.Success ? Results.Ok(r.Value) : Results.BadRequest(new { message = r.Error });
     }
 );
@@ -321,6 +364,8 @@ api.MapGet(
                     x.Side,
                     x.OrderType,
                     x.Quantity,
+                    x.FilledQuantity,
+                    x.AverageFillPrice,
                     x.Status,
                     x.BrokerOrderId,
                     x.PlacedAt,
@@ -333,36 +378,52 @@ api.MapGet(
 api.MapGet(
     "/positions",
     async (
-        PortfolioDbContext db,
+        TradingDbContext db,
         ICurrentActor actor,
-        AccountsDbContext adb,
+        AccountsDbContext accounts,
         CancellationToken ct
     ) =>
     {
-        var ids = await adb
+        var ids = await accounts
             .Accounts.AsNoTracking()
             .Where(x => x.UserInternalId == actor.ActorId)
-            .Select(x => x.Id)
+            .Select(x => x.AccountId)
             .ToListAsync(ct);
-        return Results.Ok(
-            await db
-                .Positions.AsNoTracking()
-                .Where(x => ids.Contains(x.FundedAccountInternalId))
-                .Select(x => new
-                {
-                    x.PositionId,
-                    x.Symbol,
-                    x.InstrumentToken,
-                    x.Quantity,
-                    x.AverageCost,
-                    x.RealizedPnl,
-                    x.UnrealizedPnl,
-                    x.Status,
-                    x.OpenedAt,
-                    x.ClosedAt,
-                })
-                .ToListAsync(ct)
-        );
+        var paper = await db.Set<PaperPosition>()
+            .AsNoTracking()
+            .Where(x => ids.Contains(x.AccountId))
+            .Select(x => new
+            {
+                x.PositionId,
+                x.AccountId,
+                x.Symbol,
+                x.InstrumentToken,
+                x.Quantity,
+                x.AverageCost,
+                x.RealizedPnl,
+                unrealizedPnl = (x.LastPrice - x.AverageCost) * x.Quantity,
+                status = x.Quantity == 0 ? "Closed" : "Open",
+                mode = "Paper",
+            })
+            .ToListAsync(ct);
+        var live = await db.Set<LivePosition>()
+            .AsNoTracking()
+            .Where(x => ids.Contains(x.AccountId))
+            .Select(x => new
+            {
+                x.PositionId,
+                x.AccountId,
+                x.Symbol,
+                x.InstrumentToken,
+                x.Quantity,
+                x.AverageCost,
+                x.RealizedPnl,
+                unrealizedPnl = (x.LastPrice - x.AverageCost) * x.Quantity,
+                status = x.Quantity == 0 ? "Closed" : "Open",
+                mode = "Real",
+            })
+            .ToListAsync(ct);
+        return Results.Ok(paper.Concat(live));
     }
 );
 api.MapGet(
@@ -445,26 +506,46 @@ admin.MapPut(
 );
 admin.MapGet(
     "/accounts",
-    async (AccountsDbContext db, CancellationToken ct) =>
-        Results.Ok(
-            await db
-                .Accounts.AsNoTracking()
-                .OrderByDescending(x => x.CreatedAt)
-                .Take(1000)
-                .Select(x => new
-                {
-                    x.AccountId,
-                    x.AccountNumber,
-                    x.TradingMode,
-                    x.BrokerProvider,
-                    x.Status,
-                    x.FundedCapital,
-                    x.CurrentBuyingPower,
-                    x.Version,
-                    x.CreatedAt,
-                })
-                .ToListAsync(ct)
-        )
+    async (AccountsDbContext db, TradingDbContext trading, CancellationToken ct) =>
+    {
+        var accounts = await db
+            .Accounts.AsNoTracking()
+            .OrderByDescending(x => x.Id)
+            .Take(1000)
+            .ToListAsync(ct);
+        var ids = accounts.Select(x => x.AccountId).ToArray();
+        var paper = await trading
+            .Set<PaperBook>()
+            .AsNoTracking()
+            .Where(x => ids.Contains(x.AccountId))
+            .ToDictionaryAsync(x => x.AccountId, ct);
+        var live = await trading
+            .Set<LiveBook>()
+            .AsNoTracking()
+            .Where(x => ids.Contains(x.AccountId))
+            .ToDictionaryAsync(x => x.AccountId, ct);
+        return Results.Ok(
+            accounts.Select(x => new
+            {
+                x.AccountId,
+                x.UserInternalId,
+                x.SubscriptionInternalId,
+                x.AccountNumber,
+                x.TradingMode,
+                x.BrokerProvider,
+                status = live.TryGetValue(x.AccountId, out var b) && b.Status != "Active"
+                    ? b.Status
+                    : x.Status,
+                x.FundedCapital,
+                currentBuyingPower = paper.TryGetValue(x.AccountId, out var p)
+                    ? p.Cash - p.ReservedCash
+                : live.TryGetValue(x.AccountId, out var l) ? l.Cash - l.ReservedCash
+                : x.CurrentBuyingPower,
+                x.Version,
+                x.CreatedAt,
+            })
+        );
+    }
 );
 admin.MapGet(
     "/policies",
@@ -540,6 +621,7 @@ if (
     && builder.Configuration.GetValue<bool>("Database:Initialize", true)
 )
     await BootstrapAsync(app.Services);
+app.MapLifecycleEndpoints();
 app.MapPolicyManagement();
 app.MapPlanCatalogue();
 app.MapGoogleSignIn();

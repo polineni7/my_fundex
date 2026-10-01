@@ -11,9 +11,9 @@
 - Account-level routing: Evaluation -> Upstox Sandbox; Funded -> Upstox Production with an explicit per-account credential reference. The browser cannot select the environment. Orders retain the chosen route.
 - Razorpay Test/Live key-prefix validation independent of the trading environment. Production evaluations can therefore use live purchase payments while routing evaluation orders to sandbox.
 - Two-/three-step plan models, configurable stage targets/loss limits/trading days/expiry, draft creation, metadata editing, active-policy publication validation, and a two-query public catalogue.
-- Pure challenge evaluator with loss-boundary, expiry, minimum-day, realized-profit and open-position/order checks. This evaluator is not yet wired to a verified execution-driven stage progression worker.
+- Pure challenge evaluator with loss-boundary, expiry, minimum-day, realized-profit and open-position/order checks. This evaluator is now wired to the paper-book progression worker; see IMPLEMENTATION_STATUS_2026-10-01.md for current validation.
 - Paid-subscription provisioning worker creates the initial evaluation attempt, sandbox account, wallet and assigned policy through contracts. Unique provisioning references make retries recoverable. It has not been exercised against PostgreSQL/providers here.
-- Separate MyFundex.Messaging project with injected SMTP and disabled SMS transports. SMTP is not yet connected to a durable challenge-passed notification workflow.
+- Separate MyFundex.Messaging project with injected SMTP and disabled SMS transports. SMTP is connected to the durable challenge-outcome outbox.
 - Trader Google entry, INR catalogue and stage tables. Admin plan/version creation and publishing UI. Smaller React components, lazy entry bundles, ESLint/Prettier scripts.
 - Instrument sync uses a dictionary lookup instead of one DB query per instrument.
 
@@ -57,7 +57,7 @@ Do not write credentials into runtime settings or source control. Email still ne
 
 Razorpay defaults to Test mode and rejects mismatched key prefixes. Set `Razorpay__Mode=Live` only with live keys in the production deployment. Checkout remains disabled by default until the full financial lifecycle is validated.
 
-Evaluation orders always use `Broker__Upstox__Sandbox__AccessToken`. Funded orders require the account's credential reference and `Broker__Upstox__Accounts__REFERENCE__AccessToken`. There is no automatic broker account creation or funding API in this implementation. Promotion is not a name change: verified completion, no unresolved orders/positions, approved allocation and a valid broker account link are required.
+Evaluation orders now use the internal paper engine with `Broker__Upstox__MarketData__AccessToken` for quotes; simulated fills do not call the Upstox sandbox order API. Funded orders require the account's credential reference and `Broker__Upstox__Accounts__REFERENCE__AccessToken`. There is no automatic broker account creation or funding API in this implementation. Promotion is not a name change: verified completion, no unresolved orders/positions, approved allocation and a valid broker account link are required.
 
 ## Validation results
 
@@ -69,8 +69,6 @@ Evaluation orders always use `Broker__Upstox__Sandbox__AccessToken`. Funded orde
 - SonarQube configuration is supplied, but no scanner/server quality gate was executed. Use the .NET SonarScanner begin/build/end workflow with private CI credentials.
 - Dockerfile supplied, not built or deployed here because Docker is unavailable.
 
-## Still required before production
+## Current lifecycle implementation and launch requirements
 
-Verified broker fill ingestion, order cancellation, sell inventory reservations, capital reconciliation, execution-driven positions/P&L, continuous drawdown monitoring, stage advancement/graduation, live activation/linking, congrats mail outbox, wallet settlement, withdrawals/payouts, admin square-off, complete RBAC management, deployment/backup/load/security tests, and provider sandbox end-to-end tests remain unfinished.
-
-The current code is a substantial refactor and setup implementation, **not the complete production trading MVP**. Do not enable real-money customer operations on the strength of build/unit-test results alone.
+See [IMPLEMENTATION_STATUS_2026-10-01.md](IMPLEMENTATION_STATUS_2026-10-01.md) for the implemented lifecycle, latest migrations, validation results and remaining limitations. Several features previously listed here as absent are now implemented, but database/provider acceptance is still required before production.

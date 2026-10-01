@@ -12,6 +12,7 @@ public sealed class FundedAccount : EntityBase
     public Guid? ProvisioningId { get; set; }
     public string TradingMode { get; set; } = "Evaluation";
     public string BrokerProvider { get; set; } = "Upstox";
+    public string? BrokerUserId { get; set; }
     public string? BrokerCredentialKey { get; set; }
     public Guid AccountId { get; set; }
     public long UserInternalId { get; set; }

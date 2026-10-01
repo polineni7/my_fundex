@@ -264,3 +264,31 @@ select {
         flex-direction: column;
     }
 }
+
+.metric-list {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+}
+.metric-list dd {
+    margin: 0;
+    font-weight: 650;
+}
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-block: 16px;
+}
+progress {
+    display: block;
+    width: 100%;
+    margin-block: 12px;
+    accent-color: #7c3aed;
+}
+.card {
+    margin-block: 16px;
+}
+small {
+    overflow-wrap: anywhere;
+}

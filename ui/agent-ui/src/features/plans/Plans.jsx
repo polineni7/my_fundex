@@ -1,4 +1,5 @@
 import React, { useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { api } from "../../api";
 import { useRecords } from "../../useRecords";
 const money = (value) =>
@@ -8,6 +9,8 @@ const money = (value) =>
     maximumFractionDigits: 0,
   }).format(value);
 export default function Plans() {
+  const [search] = useSearchParams();
+  const retry = search.get("retry");
   const { rows, loading, error } = useRecords("/plan-catalogue");
   const [path, setPath] = useState("TwoStep");
   const purchaseRequests = useRef(new Map());
@@ -23,6 +26,7 @@ export default function Plans() {
         method: "POST",
         body: JSON.stringify({
           planVersionId: plan.planVersionId,
+          previousSubscriptionId: retry || null,
           idempotencyKey: purchaseRequests.current.get(plan.planVersionId),
         }),
       });
@@ -122,6 +126,7 @@ export default function Plans() {
             <div>
               <span>FUNDED REWARD SHARE</span>
               <strong>{plan.rewardSharePercent}%</strong>
+              <p>Funded loss limits: {plan.fundedDailyLossPercent}% daily · {plan.fundedTotalLossPercent}% total</p>
             </div>
             <button
               className="btn"

@@ -11,6 +11,7 @@ namespace MyFundex.Trading;
 public sealed class Execution : EntityBase, IImmutableRecord
 {
     public Guid ExecutionId { get; set; }
+    public Order? Order { get; set; }
     public long OrderInternalId { get; set; }
     public string? BrokerExecutionId { get; set; }
     public decimal Quantity { get; set; }

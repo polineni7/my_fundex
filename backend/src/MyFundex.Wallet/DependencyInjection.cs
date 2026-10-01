@@ -13,6 +13,7 @@ public static class WalletModule
     {
         s.AddDbContext<WalletDbContext>(o => o.UseNpgsql(cs));
         s.AddScoped<WalletService>();
+        s.AddScoped<IWithdrawalFunds, WithdrawalFunds>();
         s.AddScoped<IWalletReader>(sp => sp.GetRequiredService<WalletService>());
         s.AddScoped<IWalletLedger>(sp => sp.GetRequiredService<WalletService>());
         s.AddScoped<IWalletProvisioner, WalletProvisioner>();

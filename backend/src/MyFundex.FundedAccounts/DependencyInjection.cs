@@ -13,6 +13,9 @@ public static class FundedAccountsModule
     {
         s.AddDbContext<AccountsDbContext>(o => o.UseNpgsql(cs));
         s.AddScoped<AccountService>();
+        s.AddScoped<AccountAdministration>();
+        s.AddScoped<IAccountLifecycle, AccountLifecycle>();
+        s.AddScoped<ILiveAccountProvisioner, LiveAccountProvisioner>();
         s.AddScoped<IFundedAccountReader>(sp => sp.GetRequiredService<AccountService>());
         s.AddScoped<IFundedAccountCapitalService>(sp => sp.GetRequiredService<AccountService>());
         s.AddScoped<IEvaluationAccountProvisioner, EvaluationAccountProvisioner>();

@@ -124,7 +124,9 @@ export default function Subscriptions() {
               <Link to="/trade">Open paper trading</Link>
             )}
             {row.status === "Failed" && (
-              <Link to="/plans">Choose a plan for a fresh attempt</Link>
+              <Link to={`/plans?retry=${row.subscriptionId}`}>
+                Choose a plan for a fresh attempt
+              </Link>
             )}
           </article>
         ))}

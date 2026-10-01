@@ -6,6 +6,8 @@ import Orders from "../features/trading/Orders";
 import Trade from "../features/trading/Trade";
 import Simple from "../components/tables/RecordsPage";
 import Subscriptions from "../features/subscriptions/Subscriptions";
+import Challenges from "../features/lifecycle/Challenges";
+import Wallet from "../features/lifecycle/Wallet";
 import Plans from "../features/plans/Plans";
 export default function Shell() {
   const logout = useAuth((s) => s.logout);
@@ -18,6 +20,8 @@ export default function Shell() {
           <NavLink to="/plans">Plans</NavLink>
           <NavLink to="/subscriptions">Subscriptions</NavLink>
           <NavLink to="/payments">Payments</NavLink>
+          <NavLink to="/challenges">Evaluation progress</NavLink>
+          <NavLink to="/wallet">Wallet & withdrawals</NavLink>
           <NavLink to="/trade">Trade</NavLink>
           <NavLink to="/orders">Orders</NavLink>
           <NavLink to="/positions">Positions</NavLink>
@@ -48,6 +52,8 @@ export default function Shell() {
               />
             }
           />
+          <Route path="/challenges" element={<Challenges />} />
+          <Route path="/wallet" element={<Wallet />} />
           <Route path="/trade" element={<Trade />} />
           <Route path="/orders" element={<Orders />} />
           <Route

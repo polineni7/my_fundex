@@ -55,7 +55,7 @@ public sealed class UpstoxInstrumentSyncService(
             row.LotSize = x.TryGetProperty("lot_size", out var lot) ? lot.GetInt32() : 1;
             row.TickSize =
                 x.TryGetProperty("tick_size", out var tick) && tick.TryGetDecimal(out var tv)
-                    ? tv
+                    ? tv / 100m
                     : 0.05m;
             row.IsActive = true;
             if (++count % 500 == 0)

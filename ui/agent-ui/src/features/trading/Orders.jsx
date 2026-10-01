@@ -59,7 +59,7 @@ export default function Orders() {
                 <td>{order.quantity}</td>
                 <td>{order.status}</td>
                 <td>
-                  {["Submitted", "PartiallyFilled"].includes(order.status) && (
+                  {["Open", "Submitted", "PartiallyFilled"].includes(order.status) && (
                     <button
                       className="btn secondary"
                       disabled={busy !== null}

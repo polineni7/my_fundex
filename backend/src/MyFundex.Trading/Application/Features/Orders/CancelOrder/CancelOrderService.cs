@@ -9,7 +9,8 @@ public sealed class CancelOrderService(
     TradingDbContext db,
     IFundedAccountReader accounts,
     IOrderCancellationGateway broker,
-    ICurrentActor actor
+    ICurrentActor actor,
+    PaperTradingEngine? paper = null
 )
 {
     public async Task<Result<PlaceOrderResult>> CancelAsync(Guid orderId, CancellationToken ct)
@@ -20,6 +21,13 @@ public sealed class CancelOrderService(
         var account = await accounts.GetByPublicIdAsync(order.AccountId, ct);
         if (account == null || actor.ActorId <= 0 || account.UserId != actor.ActorId)
             return Result<PlaceOrderResult>.Fail("Order not found.");
+        if (order.BrokerProvider == "Paper")
+        {
+            if (paper == null)
+                return Result<PlaceOrderResult>.Fail("Paper trading is unavailable.");
+            await paper.CancelAsync(orderId, ct);
+            return Result<PlaceOrderResult>.Ok(new(order.OrderId, order.Status, null));
+        }
         if (
             order.Status
             is "Cancelled"

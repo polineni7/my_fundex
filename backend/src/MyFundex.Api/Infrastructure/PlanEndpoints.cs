@@ -61,6 +61,8 @@ public static class PlanEndpoints
                             version.RegistrationFee,
                             version.ChallengeCapital,
                             version.RewardSharePercent,
+                            version.FundedDailyLossPercent,
+                            version.FundedTotalLossPercent,
                         }
                     ).ToListAsync(ct)
                 )
@@ -204,12 +206,23 @@ public static class PlanEndpoints
                             .PlanVersions.Where(x => x.PlanInternalId == plan.Id)
                             .MaxAsync(x => (int?)x.VersionNumber, ct) ?? 0
                     ) + 1;
+                if (
+                    request.RewardSharePercent is <= 0 or > 100
+                    || request.FundedDailyLossPercent is <= 0 or > 100
+                    || request.FundedTotalLossPercent is <= 0 or > 100
+                )
+                    return Results.BadRequest(
+                        new { message = "Invalid funded risk or reward percentages." }
+                    );
                 var version = new PlanVersion
                 {
                     PlanVersionId = Guid.NewGuid(),
                     PlanInternalId = plan.Id,
                     VersionNumber = next,
                     ChallengeCapital = request.ChallengeCapital,
+                    RewardSharePercent = request.RewardSharePercent,
+                    FundedDailyLossPercent = request.FundedDailyLossPercent,
+                    FundedTotalLossPercent = request.FundedTotalLossPercent,
                     RegistrationFee = request.RegistrationFee,
                     Path = request.Stages.Length == 2 ? "TwoStep" : "ThreeStep",
                     Status = "Draft",
@@ -267,7 +280,10 @@ public sealed record CreatePlanRequest(string Code, string Name, string? Descrip
 public sealed record CreatePlanVersionRequest(
     decimal ChallengeCapital,
     decimal RegistrationFee,
-    StageRequest[] Stages
+    StageRequest[] Stages,
+    decimal RewardSharePercent = 80m,
+    decimal FundedDailyLossPercent = 5m,
+    decimal FundedTotalLossPercent = 10m
 );
 
 public sealed record StageRequest(

@@ -16,6 +16,11 @@ public static class BrokerModule
     {
         s.AddDbContext<BrokerDbContext>(o => o.UseNpgsql(cs));
         s.AddHttpClient<UpstoxOrderGateway>();
+        s.AddHttpClient<IBrokerVerificationAdapter, UpstoxAccountVerifier>();
+        s.AddHttpClient<IBrokerReconciliationAdapter, UpstoxOrderReader>();
+        s.AddScoped<BrokerLifecycleRouter>();
+        s.AddScoped<IBrokerAccountVerifier>(sp => sp.GetRequiredService<BrokerLifecycleRouter>());
+        s.AddScoped<IBrokerOrderReader>(sp => sp.GetRequiredService<BrokerLifecycleRouter>());
         s.AddHttpClient<UpstoxMarketQuoteProvider>().AddStandardResilienceHandler();
         s.AddScoped<IBrokerAdapter>(sp => sp.GetRequiredService<UpstoxOrderGateway>());
         s.AddScoped<BrokerAdapterRegistry>();

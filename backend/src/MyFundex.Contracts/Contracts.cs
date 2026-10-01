@@ -10,7 +10,8 @@ public sealed record FundedAccountSnapshot(
     long Version,
     string TradingMode = "Evaluation",
     string? BrokerCredentialKey = null,
-    string BrokerProvider = "Upstox"
+    string BrokerProvider = "Upstox",
+    long SubscriptionInternalId = 0
 );
 
 public interface IFundedAccountReader
@@ -74,6 +75,17 @@ public interface IBrokerOrderGateway
 public interface IMarketQuoteProvider
 {
     Task<decimal?> GetLtpAsync(string instrumentToken, CancellationToken ct);
+    async Task<IReadOnlyDictionary<string, decimal>> GetLtpsAsync(
+        IEnumerable<string> instruments,
+        CancellationToken ct
+    )
+    {
+        var prices = new Dictionary<string, decimal>(StringComparer.Ordinal);
+        foreach (var instrument in instruments.Distinct())
+            if (await GetLtpAsync(instrument, ct) is decimal price && price > 0)
+                prices[instrument] = price;
+        return prices;
+    }
 }
 
 public sealed record WalletSnapshot(

@@ -28,6 +28,7 @@ public sealed class EvaluationAccountProvisioner(
                 FundedCapital = request.Capital,
                 CurrentBuyingPower = request.Capital,
                 TradingMode = "Evaluation",
+                BrokerProvider = "Paper",
                 Status = "Provisioning",
                 AccountNumber = "MFX-EV-" + request.ProvisioningId.ToString("N"),
             };

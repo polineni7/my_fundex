@@ -21,6 +21,12 @@ public sealed class SubscriptionDbContext(
     public static void ConfigureModel(ModelBuilder m)
     {
         m.HasDefaultSchema("fundex_subscription");
+        ConfigureEntity(m.Entity<ChallengeNotice>());
+        m.Entity<ChallengeNotice>().ToTable("ChallengeNotices", "fundex_subscription");
+        m.Entity<ChallengeNotice>()
+            .HasIndex(x => new { x.SubscriptionInternalId, x.Outcome })
+            .IsUnique();
+        m.Entity<ChallengeNotice>().HasIndex(x => new { x.DeliveredAt, x.LeaseUntil });
         ConfigureEntity(m.Entity<ChallengeAttempt>());
         m.Entity<ChallengeAttempt>().ToTable("ChallengeAttempts", "fundex_subscription");
         m.Entity<ChallengeAttempt>().HasIndex(x => x.AttemptId).IsUnique();

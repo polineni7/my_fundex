@@ -17,8 +17,11 @@ public sealed class WithdrawalDbContext(DbContextOptions<WithdrawalDbContext> o,
     public static void ConfigureModel(ModelBuilder m)
     {
         m.HasDefaultSchema("fundex_withdrawal");
+        m.Entity<WithdrawalRequest>().HasIndex(x => new { x.Status, x.NextCheckAt });
         ConfigureEntity(m.Entity<WithdrawalRequest>());
         ConfigureEntity(m.Entity<WithdrawalCalculation>());
+        m.Entity<WithdrawalRequest>().HasIndex(x => x.ProviderPayoutId).IsUnique();
+        m.Entity<WithdrawalRequest>().HasIndex(x => new { x.Status, x.Id });
         m.Entity<WithdrawalRequest>().HasIndex(x => x.WithdrawalId).IsUnique();
     }
 }

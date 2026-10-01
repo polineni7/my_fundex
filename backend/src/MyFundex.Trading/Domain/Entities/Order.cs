@@ -10,9 +10,12 @@ namespace MyFundex.Trading;
 
 public sealed class Order : EntityBase
 {
+    public bool IsLiquidation { get; set; }
     public string BrokerEnvironment { get; set; } = "SANDBOX";
     public string BrokerProvider { get; set; } = "Upstox";
     public string? BrokerCredentialKey { get; set; }
+    public bool UsesLiveBook { get; set; }
+    public decimal ReservedCash { get; set; }
     public Guid OrderId { get; set; }
     public Guid AccountId { get; set; }
     public long FundedAccountInternalId { get; set; }

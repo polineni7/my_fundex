@@ -8,6 +8,11 @@ namespace MyFundex.Withdrawals;
 
 public sealed class WithdrawalRequest : EntityBase
 {
+    public DateTimeOffset? NextCheckAt { get; set; }
+    public long UserInternalId { get; set; }
+    public string? BeneficiaryReference { get; set; }
+    public string? ProviderPayoutId { get; set; }
+    public DateTimeOffset? PayoutStartedAt { get; set; }
     public Guid WithdrawalId { get; set; }
     public long FundedAccountInternalId { get; set; }
     public decimal RequestedAmount { get; set; }

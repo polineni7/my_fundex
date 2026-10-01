@@ -8,6 +8,8 @@ namespace MyFundex.Subscription;
 
 public sealed class PlanVersion : EntityBase
 {
+    public decimal FundedDailyLossPercent { get; set; } = 5m;
+    public decimal FundedTotalLossPercent { get; set; } = 10m;
     public string Path { get; set; } = "TwoStep";
     public decimal RewardSharePercent { get; set; } = 80m;
     public Guid PlanVersionId { get; set; }

@@ -14,6 +14,12 @@ public static class TradingModule
     {
         s.AddDbContext<TradingDbContext>(o => o.UseNpgsql(cs));
         s.AddScoped<OrderService>();
+        s.AddScoped<LiveSettlementService>();
+        s.AddScoped<LiveRiskMonitor>();
+        s.AddScoped<SquareOffService>();
+        s.AddScoped<ProfitDistributionService>();
+        s.AddScoped<PaperTradingEngine>();
+        s.AddScoped<IEvaluationProgressReader>(sp => sp.GetRequiredService<PaperTradingEngine>());
         s.AddScoped<CancelOrderService>();
         return s;
     }

@@ -32,6 +32,8 @@ public static class PlanCatalogueEndpoints
                             version.ChallengeCapital,
                             version.RegistrationFee,
                             version.RewardSharePercent,
+                            version.FundedDailyLossPercent,
+                            version.FundedTotalLossPercent,
                         }
                     ).Take(100).ToListAsync(ct);
                     var ids = versions.Select(x => x.InternalId).ToArray();
@@ -63,6 +65,8 @@ public static class PlanCatalogueEndpoints
                             x.ChallengeCapital,
                             x.RegistrationFee,
                             x.RewardSharePercent,
+                            x.FundedDailyLossPercent,
+                            x.FundedTotalLossPercent,
                             currency = "INR",
                             stages = lookup[x.InternalId]
                                 .Select(stage => new

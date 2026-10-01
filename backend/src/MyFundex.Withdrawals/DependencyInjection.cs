@@ -10,6 +10,7 @@ public static class WithdrawalsModule
 {
     public static IServiceCollection AddWithdrawalsModule(this IServiceCollection s, string cs)
     {
+        s.AddScoped<WithdrawalService>();
         s.AddDbContext<WithdrawalDbContext>(o => o.UseNpgsql(cs));
         return s;
     }

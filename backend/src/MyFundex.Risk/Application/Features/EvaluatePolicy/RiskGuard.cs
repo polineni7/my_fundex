@@ -26,11 +26,6 @@ public sealed class RiskGuard(RiskDbContext db) : IRiskGuard
         ).ToListAsync(ct);
         if (rules.Count == 0)
             return new(false, "POLICY_MISSING", "No effective trading policy is assigned.");
-        if (
-            !request.InstrumentToken.StartsWith("NSE_EQ|", StringComparison.Ordinal)
-            && !request.InstrumentToken.StartsWith("BSE_EQ|", StringComparison.Ordinal)
-        )
-            return new(false, "EQUITY_ONLY", "Only equity instruments are supported.");
         foreach (var rule in rules)
         {
             if (rule.RuleCode is not ("MAX_ORDER_VALUE" or "EQUITY_ONLY"))
