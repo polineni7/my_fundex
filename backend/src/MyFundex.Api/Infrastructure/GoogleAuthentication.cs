@@ -155,24 +155,36 @@ public static class GoogleAuthentication
                         LastName = result.Principal.FindFirstValue(ClaimTypes.Surname) ?? "",
                         PasswordHash = "",
                     };
+                    var traderRole = await db.Roles.SingleAsync(x => x.Code == "TRADER", ct);
+                    db.Add(new UserRole { User = user, RoleInternalId = traderRole.Id });
                     db.Add(user);
                     await db.SaveChangesAsync(ct);
                 }
                 if (user.Status != "Active")
                     return Results.Unauthorized();
+                db.Events.Add(
+                    new IdentityEvent
+                    {
+                        UserInternalId = user.Id,
+                        EventType = "Login",
+                        Method = "Google",
+                        Succeeded = true,
+                    }
+                );
+                await db.SaveChangesAsync(ct);
                 await context.SignOutAsync(ExternalScheme);
                 // Google entry is trader-only; it cannot mint administrator or manager privileges.
                 return Results.Ok(
                     new
                     {
-                        accessToken = tokens.Create(user, [], []),
+                        accessToken = tokens.Create(user, ["TRADER"], []),
                         user = new
                         {
                             user.UserId,
                             user.Email,
                             user.FirstName,
                             user.LastName,
-                            roles = Array.Empty<string>(),
+                            roles = new[] { "TRADER" },
                             permissions = Array.Empty<string>(),
                         },
                     }

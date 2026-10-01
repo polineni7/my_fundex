@@ -1,3 +1,4 @@
+import { useAuth } from "./store";
 export const API =
   import.meta.env.VITE_API_URL || "http://localhost:50901/api/v1";
 export async function api(path, options = {}) {
@@ -8,6 +9,7 @@ export async function api(path, options = {}) {
     ...(options.headers || {}),
   };
   const response = await fetch(`${API}${path}`, { ...options, headers });
+  if (response.status === 401) useAuth.getState().logout();
   if (response.status === 204) return null;
   const body = await response.json().catch(() => null);
   if (!response.ok) {

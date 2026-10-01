@@ -61,6 +61,8 @@ public static class PlanEndpoints
                             version.RegistrationFee,
                             version.ChallengeCapital,
                             version.RewardSharePercent,
+                            version.TaxWithholdingPercent,
+                            version.OtherDeductionPercent,
                             version.FundedDailyLossPercent,
                             version.FundedTotalLossPercent,
                         }
@@ -207,7 +209,10 @@ public static class PlanEndpoints
                             .MaxAsync(x => (int?)x.VersionNumber, ct) ?? 0
                     ) + 1;
                 if (
-                    request.RewardSharePercent is <= 0 or > 100
+                    request.TaxWithholdingPercent < 0
+                    || request.OtherDeductionPercent < 0
+                    || request.TaxWithholdingPercent + request.OtherDeductionPercent >= 100
+                    || request.RewardSharePercent is <= 0 or > 100
                     || request.FundedDailyLossPercent is <= 0 or > 100
                     || request.FundedTotalLossPercent is <= 0 or > 100
                 )
@@ -221,6 +226,8 @@ public static class PlanEndpoints
                     VersionNumber = next,
                     ChallengeCapital = request.ChallengeCapital,
                     RewardSharePercent = request.RewardSharePercent,
+                    TaxWithholdingPercent = request.TaxWithholdingPercent,
+                    OtherDeductionPercent = request.OtherDeductionPercent,
                     FundedDailyLossPercent = request.FundedDailyLossPercent,
                     FundedTotalLossPercent = request.FundedTotalLossPercent,
                     RegistrationFee = request.RegistrationFee,
@@ -283,7 +290,9 @@ public sealed record CreatePlanVersionRequest(
     StageRequest[] Stages,
     decimal RewardSharePercent = 80m,
     decimal FundedDailyLossPercent = 5m,
-    decimal FundedTotalLossPercent = 10m
+    decimal FundedTotalLossPercent = 10m,
+    decimal TaxWithholdingPercent = 0m,
+    decimal OtherDeductionPercent = 0m
 );
 
 public sealed record StageRequest(

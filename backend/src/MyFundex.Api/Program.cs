@@ -81,6 +81,7 @@ builder
     .Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(o =>
     {
+        o.Events = new JwtBearerEvents { OnTokenValidated = IdentityEndpoints.ValidateTokenAsync };
         o.TokenValidationParameters = new()
         {
             ValidateIssuer = true,
@@ -95,6 +96,22 @@ builder
 builder.Services.AddAuthorization();
 builder.Services.AddGoogleSignIn(builder.Configuration);
 var app = builder.Build();
+if (args.Contains("--seed-defaults", StringComparer.Ordinal))
+{
+    using var scope = app.Services.CreateScope();
+    await DefaultDataSeeder.SeedAsync(
+        scope.ServiceProvider.GetRequiredService<DevBootstrapDbContext>(),
+        CancellationToken.None
+    );
+    if (builder.Configuration.GetValue<bool>("Bootstrap:SeedAdmin"))
+        await AdministratorBootstrap.SeedAsync(
+            app.Services,
+            builder.Configuration,
+            CancellationToken.None
+        );
+    app.Logger.LogInformation("Default data seeded successfully.");
+    return;
+}
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseCors();
 app.UseAuthentication();
@@ -128,11 +145,13 @@ app.MapPost(
             {
                 UserId = MyFundex.BuildingBlocks.Ids.Uuid7.NewGuid(),
                 Email = email,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(r.Password),
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(r.Password, 12),
                 FirstName = r.FirstName.Trim(),
                 LastName = r.LastName.Trim(),
             };
+            var traderRole = await db.Roles.SingleAsync(x => x.Code == "TRADER", ct);
             db.Add(u);
+            db.Add(new UserRole { User = u, RoleInternalId = traderRole.Id });
             await db.SaveChangesAsync(ct);
             return Results.Created(
                 $"/api/v1/users/{u.UserId}",
@@ -166,7 +185,29 @@ app.MapPost(
                 || string.IsNullOrEmpty(u.PasswordHash)
                 || !BCrypt.Net.BCrypt.Verify(r.Password, u.PasswordHash)
             )
+            {
+                db.Events.Add(
+                    new IdentityEvent
+                    {
+                        UserInternalId = u?.Id,
+                        EventType = "Login",
+                        Method = "Password",
+                        Succeeded = false,
+                    }
+                );
+                await db.SaveChangesAsync(ct);
                 return Results.Unauthorized();
+            }
+            db.Events.Add(
+                new IdentityEvent
+                {
+                    UserInternalId = u.Id,
+                    EventType = "Login",
+                    Method = "Password",
+                    Succeeded = true,
+                }
+            );
+            await db.SaveChangesAsync(ct);
             var roles = await (
                 from ur in db.UserRoles
                 join ro in db.Roles on ur.RoleInternalId equals ro.Id
@@ -202,6 +243,7 @@ app.MapPost(
     .AllowAnonymous()
     .RequireRateLimiting("authentication");
 
+app.MapIdentityManagement();
 var api = app.MapGroup("/api/v1").RequireAuthorization();
 api.MapGet(
     "/plans",
@@ -634,29 +676,6 @@ static async Task BootstrapAsync(IServiceProvider sp)
     using var scope = sp.CreateScope();
     var bootstrap = scope.ServiceProvider.GetRequiredService<DevBootstrapDbContext>();
     await bootstrap.Database.MigrateAsync();
-
-    var db = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
-    if (!await db.Users.AnyAsync())
-    {
-        var admin = new User
-        {
-            UserId = MyFundex.BuildingBlocks.Ids.Uuid7.NewGuid(),
-            Email = "admin@myfundex.local",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("ChangeMe!123"),
-            FirstName = "System",
-            LastName = "Admin",
-        };
-        var role = new Role
-        {
-            RoleId = MyFundex.BuildingBlocks.Ids.Uuid7.NewGuid(),
-            Code = "ADMIN",
-            Name = "Administrator",
-        };
-        db.AddRange(admin, role);
-        await db.SaveChangesAsync();
-        db.Add(new UserRole { UserInternalId = admin.Id, RoleInternalId = role.Id });
-        await db.SaveChangesAsync();
-    }
 }
 
 public sealed record RegisterRequest(

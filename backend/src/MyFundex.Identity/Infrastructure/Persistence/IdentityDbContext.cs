@@ -13,6 +13,7 @@ public sealed class IdentityDbContext(
     IDataProtectionProvider protection
 ) : AuditableDbContext(o, a)
 {
+    public DbSet<IdentityEvent> Events => Set<IdentityEvent>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<Permission> Permissions => Set<Permission>();
@@ -34,6 +35,48 @@ public sealed class IdentityDbContext(
     public static void ConfigureModel(ModelBuilder m)
     {
         m.HasDefaultSchema("fundex_identity");
+        ConfigureEntity(m.Entity<IdentityEvent>());
+        m.Entity<IdentityEvent>().ToTable("IdentityEvents", "fundex_identity");
+        m.Entity<IdentityEvent>().HasIndex(x => x.EventId).IsUnique();
+        m.Entity<IdentityEvent>().HasIndex(x => new { x.UserInternalId, x.CreatedAt });
+        m.Entity<IdentityEvent>().Property(x => x.EventType).HasMaxLength(60);
+        m.Entity<IdentityEvent>().Property(x => x.Method).HasMaxLength(30);
+        m.Entity<IdentityEvent>().Property(x => x.Detail).HasMaxLength(500);
+        m.Entity<IdentityEvent>()
+            .HasOne<User>()
+            .WithMany()
+            .HasForeignKey(x => x.UserInternalId)
+            .OnDelete(DeleteBehavior.Restrict);
+        m.Entity<UserRole>()
+            .HasOne(x => x.User)
+            .WithMany()
+            .HasForeignKey(x => x.UserInternalId)
+            .OnDelete(DeleteBehavior.Restrict);
+        m.Entity<UserRole>()
+            .HasOne<Role>()
+            .WithMany()
+            .HasForeignKey(x => x.RoleInternalId)
+            .OnDelete(DeleteBehavior.Restrict);
+        m.Entity<RolePermission>()
+            .HasOne<Role>()
+            .WithMany()
+            .HasForeignKey(x => x.RoleInternalId)
+            .OnDelete(DeleteBehavior.Restrict);
+        m.Entity<RolePermission>()
+            .HasOne<Permission>()
+            .WithMany()
+            .HasForeignKey(x => x.PermissionInternalId)
+            .OnDelete(DeleteBehavior.Restrict);
+        m.Entity<UserRole>()
+            .HasIndex(x => new { x.UserInternalId, x.RoleInternalId })
+            .IsUnique()
+            .HasFilter("\"IsDeleted\" = false");
+        m.Entity<RolePermission>()
+            .HasIndex(x => new { x.RoleInternalId, x.PermissionInternalId })
+            .IsUnique()
+            .HasFilter("\"IsDeleted\" = false");
+        m.Entity<Role>().HasIndex(x => x.RoleId).IsUnique();
+        m.Entity<Permission>().HasIndex(x => x.PermissionId).IsUnique();
         ConfigureEntity(m.Entity<User>());
         ConfigureEntity(m.Entity<Role>());
         ConfigureEntity(m.Entity<Permission>());

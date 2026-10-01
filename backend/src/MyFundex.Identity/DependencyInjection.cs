@@ -10,6 +10,7 @@ public static class IdentityModule
 {
     public static IServiceCollection AddIdentityModule(this IServiceCollection s, string cs)
     {
+        s.AddScoped<IdentityAdministration>();
         s.AddDbContext<IdentityDbContext>(o => o.UseNpgsql(cs));
         return s;
     }

@@ -21,22 +21,22 @@ public sealed class TradingDbContext(DbContextOptions<TradingDbContext> o, ICurr
     {
         m.HasDefaultSchema("fundex_trading");
         ConfigureEntity(m.Entity<ProfitDistribution>());
-        m.Entity<ProfitDistribution>().ToTable("ProfitDistributions", "myfund_prod_trading");
+        m.Entity<ProfitDistribution>().ToTable("ProfitDistributions", "fundex_prod_trading");
         m.Entity<ProfitDistribution>().HasIndex(x => x.DistributionId).IsUnique();
         m.Entity<ProfitDistribution>()
             .HasIndex(x => new { x.AccountId, x.SettlementReference })
             .IsUnique();
         ConfigureEntity(m.Entity<LiveBook>());
         ConfigureEntity(m.Entity<LivePosition>());
-        m.Entity<LiveBook>().ToTable("Books", "myfund_prod_trading");
-        m.Entity<LivePosition>().ToTable("Positions", "myfund_prod_trading");
+        m.Entity<LiveBook>().ToTable("Books", "fundex_prod_trading");
+        m.Entity<LivePosition>().ToTable("Positions", "fundex_prod_trading");
         m.Entity<LiveBook>().HasIndex(x => x.AccountId).IsUnique();
         m.Entity<LivePosition>().HasIndex(x => new { x.AccountId, x.InstrumentToken }).IsUnique();
         m.Entity<LivePosition>().Property(x => x.AverageCost).HasPrecision(28, 10);
         ConfigureEntity(m.Entity<PaperBook>());
         ConfigureEntity(m.Entity<PaperPosition>());
-        m.Entity<PaperBook>().ToTable("Books", "myfund_sandbox_trading");
-        m.Entity<PaperPosition>().ToTable("Positions", "myfund_sandbox_trading");
+        m.Entity<PaperBook>().ToTable("Books", "fundex_sandbox_trading");
+        m.Entity<PaperPosition>().ToTable("Positions", "fundex_sandbox_trading");
         m.Entity<PaperBook>().HasIndex(x => x.AccountId).IsUnique();
         m.Entity<PaperPosition>().HasIndex(x => new { x.AccountId, x.InstrumentToken }).IsUnique();
         m.Entity<PaperPosition>().Property(x => x.AverageCost).HasPrecision(28, 10);

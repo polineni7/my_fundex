@@ -13,3 +13,5 @@
 .idea/
 
 **/.local/
+node_modules/
+.neon

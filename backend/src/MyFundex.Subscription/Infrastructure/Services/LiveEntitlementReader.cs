@@ -46,7 +46,9 @@ public sealed class LiveEntitlementReader(SubscriptionDbContext db) : ILiveEntit
             stages[^1].PolicySetId,
             version.RewardSharePercent,
             version.FundedDailyLossPercent,
-            version.FundedTotalLossPercent
+            version.FundedTotalLossPercent,
+            version.TaxWithholdingPercent,
+            version.OtherDeductionPercent
         );
     }
 }

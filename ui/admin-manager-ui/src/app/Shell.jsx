@@ -1,3 +1,4 @@
+import Users from "../features/identity/Users";
 import Operations from "../features/lifecycle/Operations";
 import Plans from "../features/plans/Plans";
 import React from "react";
@@ -16,6 +17,7 @@ export default function Shell() {
           <NavLink to="/">Dashboard</NavLink>
           <NavLink to="/plans">Plans</NavLink>
           <NavLink to="/operations">Lifecycle operations</NavLink>
+          <NavLink to="/users">Users and access</NavLink>
           <NavLink to="/accounts">Accounts</NavLink>
           <NavLink to="/policies">Policies</NavLink>
           <NavLink to="/settings">Settings</NavLink>
@@ -27,6 +29,7 @@ export default function Shell() {
       </aside>
       <main className="main">
         <Routes>
+          <Route path="/users" element={<Users />} />
           <Route path="/operations" element={<Operations />} />
           <Route path="/plans" element={<Plans />} />
           <Route path="/" element={<Dashboard />} />

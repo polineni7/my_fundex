@@ -465,6 +465,40 @@ public sealed class FullLifecycleTests
         }
     }
 
+    [Fact]
+    public void ProfitAllocationSeparatesShareTaxAndOtherAndDoesNotPayLosses()
+    {
+        var split = ProfitAllocation.Calculate(1000, 80, 10, 5);
+        Assert.Equal(800, split.TraderGross);
+        Assert.Equal(200, split.Platform);
+        Assert.Equal(80, split.Tax);
+        Assert.Equal(40, split.Other);
+        Assert.Equal(680, split.Net);
+        Assert.Equal(1000, split.Net + split.Platform + split.Tax + split.Other);
+        Assert.Equal(0, ProfitAllocation.Calculate(-100, 80, 10, 5).Net);
+        Assert.Throws<ArgumentException>(() => ProfitAllocation.Calculate(100, 80, 80, 20));
+    }
+
+    [Fact]
+    public async Task AllocationLedgerBalancesDeductionsAndRejectsChangedReplay()
+    {
+        using var fixture = new Fixture();
+        await fixture.WalletProvisioner.EnsureAsync(42, default);
+        var service = new WalletService(fixture.Wallets);
+        await service.CreditProfitAllocationAsync(42, 680, 80, 40, "Settlement", "one", default);
+        await service.CreditProfitAllocationAsync(42, 680, 80, 40, "Settlement", "one", default);
+        var entries = await fixture.Wallets.Entries.ToListAsync();
+        Assert.Equal(4, entries.Count);
+        Assert.Equal(
+            entries.Where(x => x.Direction == "Debit").Sum(x => x.Amount),
+            entries.Where(x => x.Direction == "Credit").Sum(x => x.Amount)
+        );
+        Assert.Equal(680, (await service.GetByAccountAsync(42, default))!.WithdrawableBalance);
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => service.CreditProfitAllocationAsync(42, 680, 81, 39, "Settlement", "one", default)
+        );
+    }
+
     private static PlaceOrderCommand Command(Guid accountId, string side, decimal quantity) =>
         new(accountId, "TEST", "TEST", side, "MARKET", quantity, null, Guid.NewGuid());
 

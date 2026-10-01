@@ -6,7 +6,8 @@ namespace MyFundex.Trading;
 public sealed class LiveSettlementService(
     TradingDbContext db,
     IBrokerOrderReader broker,
-    IOrderCancellationGateway? cancellations = null
+    IOrderCancellationGateway? cancellations = null,
+    ILiveRiskTermsReader? profitTerms = null
 )
 {
     public async Task ReconcileAsync(Guid orderId, CancellationToken ct)
@@ -41,6 +42,8 @@ public sealed class LiveSettlementService(
             throw new ArgumentException(
                 "Broker fills are incomplete or inconsistent; settlement is deferred."
             );
+        var allocationTerms =
+            profitTerms == null ? null : await profitTerms.GetByAccountAsync(order.AccountId, ct);
         var book = await db.Set<LiveBook>().SingleAsync(x => x.AccountId == order.AccountId, ct);
         var position = await db.Set<LivePosition>()
             .SingleAsync(
@@ -73,6 +76,10 @@ public sealed class LiveSettlementService(
                     throw new ArgumentException("Broker changed a settled execution.");
                 continue;
             }
+            var realized =
+                order.Side == "SELL"
+                    ? fill.Quantity * (fill.Price - position.AverageCost)
+                    : (decimal?)null;
             var value = fill.Quantity * fill.Price;
             position.LastPrice = fill.Price;
             if (order.Side == "BUY")
@@ -102,6 +109,10 @@ public sealed class LiveSettlementService(
             db.Executions.Add(
                 new Execution
                 {
+                    RealizedProfit = realized,
+                    TraderSharePercent = allocationTerms?.RewardSharePercent,
+                    TaxWithholdingPercent = allocationTerms?.TaxWithholdingPercent,
+                    OtherDeductionPercent = allocationTerms?.OtherDeductionPercent,
                     ExecutionId = Guid.NewGuid(),
                     OrderInternalId = order.Id,
                     BrokerExecutionId = fill.TradeId,

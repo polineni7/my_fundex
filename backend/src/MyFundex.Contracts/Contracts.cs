@@ -103,6 +103,21 @@ public interface IWalletReader
 
 public interface IWalletLedger
 {
+    Task CreditProfitAllocationAsync(
+        long accountId,
+        decimal net,
+        decimal tax,
+        decimal other,
+        string referenceType,
+        string referenceId,
+        CancellationToken ct
+    )
+    {
+        if (tax != 0 || other != 0)
+            throw new NotSupportedException("Allocation ledger is required.");
+        return CreditProfitAsync(accountId, net, referenceType, referenceId, ct);
+    }
+
     Task CreditProfitAsync(
         long fundedAccountInternalId,
         decimal amount,

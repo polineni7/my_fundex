@@ -15,6 +15,10 @@ public sealed class JwtTokenService(IConfiguration cfg)
             new(JwtRegisteredClaimNames.Sub, user.UserId.ToString()),
             new(JwtRegisteredClaimNames.Email, user.Email),
             new("internal_user_id", user.Id.ToString()),
+            new(
+                "security_version",
+                user.SecurityVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            ),
             new("name", $"{user.FirstName} {user.LastName}"),
         };
         claims.AddRange(roles.Select(r => new Claim(ClaimTypes.Role, r)));

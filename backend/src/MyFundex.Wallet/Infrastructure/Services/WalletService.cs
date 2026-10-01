@@ -22,15 +22,27 @@ public sealed class WalletService(WalletDbContext db) : IWalletReader, IWalletLe
             ))
             .SingleOrDefaultAsync(ct);
 
-    public async Task CreditProfitAsync(
+    public Task CreditProfitAsync(
         long id,
         decimal amount,
+        string rt,
+        string rid,
+        CancellationToken ct
+    ) => CreditProfitAllocationAsync(id, amount, 0, 0, rt, rid, ct);
+
+    public async Task CreditProfitAllocationAsync(
+        long id,
+        decimal amount,
+        decimal tax,
+        decimal other,
         string rt,
         string rid,
         CancellationToken ct
     )
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(amount);
+        ArgumentOutOfRangeException.ThrowIfNegative(tax);
+        ArgumentOutOfRangeException.ThrowIfNegative(other);
         if (
             string.IsNullOrWhiteSpace(rt)
             || string.IsNullOrWhiteSpace(rid)
@@ -68,6 +80,21 @@ public sealed class WalletService(WalletDbContext db) : IWalletReader, IWalletLe
                 );
             if (posted.Amount != amount)
                 throw new ArgumentException("Settlement reference has a different amount.");
+            var deductions = await db
+                .Entries.AsNoTracking()
+                .Where(x =>
+                    x.TransactionInternalId == existing.Id
+                    && (x.LedgerAccount == "TaxWithheld" || x.LedgerAccount == "OtherDeductions")
+                )
+                .ToListAsync(ct);
+            if (
+                deductions.Where(x => x.LedgerAccount == "TaxWithheld").Sum(x => x.Amount) != tax
+                || deductions.Where(x => x.LedgerAccount == "OtherDeductions").Sum(x => x.Amount)
+                    != other
+            )
+                throw new ArgumentException(
+                    "Settlement deductions differ from the original posting."
+                );
             return;
         }
         var w = await db.Wallets.SingleAsync(x => x.FundedAccountInternalId == id, ct);
@@ -100,9 +127,28 @@ public sealed class WalletService(WalletDbContext db) : IWalletReader, IWalletLe
                 TransactionInternalId = t.Id,
                 LedgerAccount = "PlatformSettlement",
                 Direction = "Debit",
-                Amount = amount,
+                Amount = amount + tax + other,
             }
         );
+        foreach (
+            var deduction in new[]
+            {
+                (Account: "TaxWithheld", Amount: tax),
+                (Account: "OtherDeductions", Amount: other),
+            }
+        )
+            if (deduction.Amount > 0)
+                db.Add(
+                    new LedgerEntry
+                    {
+                        EntryId = Guid.NewGuid(),
+                        WalletInternalId = w.Id,
+                        TransactionInternalId = t.Id,
+                        LedgerAccount = deduction.Account,
+                        Direction = "Credit",
+                        Amount = deduction.Amount,
+                    }
+                );
         w.CachedAvailableBalance += amount;
         w.CachedWithdrawableBalance += amount;
         await db.SaveChangesAsync(ct);

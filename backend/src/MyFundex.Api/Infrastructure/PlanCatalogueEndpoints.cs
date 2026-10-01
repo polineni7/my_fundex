@@ -32,6 +32,8 @@ public static class PlanCatalogueEndpoints
                             version.ChallengeCapital,
                             version.RegistrationFee,
                             version.RewardSharePercent,
+                            version.TaxWithholdingPercent,
+                            version.OtherDeductionPercent,
                             version.FundedDailyLossPercent,
                             version.FundedTotalLossPercent,
                         }
@@ -65,6 +67,8 @@ public static class PlanCatalogueEndpoints
                             x.ChallengeCapital,
                             x.RegistrationFee,
                             x.RewardSharePercent,
+                            x.TaxWithholdingPercent,
+                            x.OtherDeductionPercent,
                             x.FundedDailyLossPercent,
                             x.FundedTotalLossPercent,
                             currency = "INR",

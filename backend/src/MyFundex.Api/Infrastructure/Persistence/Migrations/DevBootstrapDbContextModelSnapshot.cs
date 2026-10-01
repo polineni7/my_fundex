@@ -531,6 +531,72 @@ namespace MyFundex.Api.Infrastructure.Persistence.Migrations
                     b.ToTable("Accounts", "fundex_accounts");
                 });
 
+            modelBuilder.Entity("MyFundex.Identity.IdentityEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<long>("CreatedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<long?>("DeletedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Detail")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<bool>("Succeeded")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("UserInternalId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventId")
+                        .IsUnique();
+
+                    b.HasIndex("UserInternalId", "CreatedAt");
+
+                    b.ToTable("IdentityEvents", "fundex_identity");
+                });
+
             modelBuilder.Entity("MyFundex.Identity.Permission", b =>
                 {
                     b.Property<long>("Id")
@@ -580,6 +646,9 @@ namespace MyFundex.Api.Infrastructure.Persistence.Migrations
                     b.HasIndex("Code")
                         .IsUnique()
                         .HasFilter("\"IsDeleted\" = false");
+
+                    b.HasIndex("PermissionId")
+                        .IsUnique();
 
                     b.ToTable("Permissions", "fundex_identity");
                 });
@@ -634,6 +703,9 @@ namespace MyFundex.Api.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasFilter("\"IsDeleted\" = false");
 
+                    b.HasIndex("RoleId")
+                        .IsUnique();
+
                     b.ToTable("Roles", "fundex_identity");
                 });
 
@@ -677,6 +749,12 @@ namespace MyFundex.Api.Infrastructure.Persistence.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("PermissionInternalId");
+
+                    b.HasIndex("RoleInternalId", "PermissionInternalId")
+                        .IsUnique()
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("RolePermissions", "fundex_identity");
                 });
@@ -722,6 +800,9 @@ namespace MyFundex.Api.Infrastructure.Persistence.Migrations
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<long>("SecurityVersion")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -795,6 +876,12 @@ namespace MyFundex.Api.Infrastructure.Persistence.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("RoleInternalId");
+
+                    b.HasIndex("UserInternalId", "RoleInternalId")
+                        .IsUnique()
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("UserRoles", "fundex_identity");
                 });
@@ -2314,6 +2401,10 @@ namespace MyFundex.Api.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<decimal>("OtherDeductionPercent")
+                        .HasPrecision(20, 4)
+                        .HasColumnType("numeric(20,4)");
+
                     b.Property<string>("Path")
                         .IsRequired()
                         .HasColumnType("text");
@@ -2326,7 +2417,8 @@ namespace MyFundex.Api.Infrastructure.Persistence.Migrations
 
                     b.Property<decimal>("RegistrationFee")
                         .HasPrecision(20, 4)
-                        .HasColumnType("numeric(20,4)");
+                        .HasColumnType("numeric(20,4)")
+                        .HasColumnName("AssessmentFee");
 
                     b.Property<decimal>("RewardSharePercent")
                         .HasPrecision(20, 4)
@@ -2335,6 +2427,10 @@ namespace MyFundex.Api.Infrastructure.Persistence.Migrations
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<decimal>("TaxWithholdingPercent")
+                        .HasPrecision(20, 4)
+                        .HasColumnType("numeric(20,4)");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("timestamptz");
@@ -2397,7 +2493,8 @@ namespace MyFundex.Api.Infrastructure.Persistence.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<Guid?>("PreviousSubscriptionId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("PreviousEnrollmentId");
 
                     b.Property<Guid?>("PurchaseRequestId")
                         .HasColumnType("uuid");
@@ -2407,10 +2504,12 @@ namespace MyFundex.Api.Infrastructure.Persistence.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTimeOffset>("SubscribedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("EnrolledAt");
 
                     b.Property<Guid>("SubscriptionId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("EnrollmentId");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("timestamptz");
@@ -2433,7 +2532,7 @@ namespace MyFundex.Api.Infrastructure.Persistence.Migrations
                     b.HasIndex("SubscriptionId")
                         .IsUnique();
 
-                    b.ToTable("Subscriptions", "fundex_subscription");
+                    b.ToTable("AssessmentEnrollments", "fundex_subscription");
                 });
 
             modelBuilder.Entity("MyFundex.Trading.Execution", b =>
@@ -2475,11 +2574,27 @@ namespace MyFundex.Api.Infrastructure.Persistence.Migrations
                     b.Property<long>("OrderInternalId")
                         .HasColumnType("bigint");
 
+                    b.Property<decimal?>("OtherDeductionPercent")
+                        .HasPrecision(20, 4)
+                        .HasColumnType("numeric(20,4)");
+
                     b.Property<decimal>("Price")
                         .HasPrecision(20, 4)
                         .HasColumnType("numeric(20,4)");
 
                     b.Property<decimal>("Quantity")
+                        .HasPrecision(20, 4)
+                        .HasColumnType("numeric(20,4)");
+
+                    b.Property<decimal?>("RealizedProfit")
+                        .HasPrecision(20, 4)
+                        .HasColumnType("numeric(20,4)");
+
+                    b.Property<decimal?>("TaxWithholdingPercent")
+                        .HasPrecision(20, 4)
+                        .HasColumnType("numeric(20,4)");
+
+                    b.Property<decimal?>("TraderSharePercent")
                         .HasPrecision(20, 4)
                         .HasColumnType("numeric(20,4)");
 
@@ -2578,7 +2693,7 @@ namespace MyFundex.Api.Infrastructure.Persistence.Migrations
                     b.HasIndex("AccountId")
                         .IsUnique();
 
-                    b.ToTable("Books", "myfund_prod_trading");
+                    b.ToTable("Books", "fundex_prod_trading");
                 });
 
             modelBuilder.Entity("MyFundex.Trading.LivePosition", b =>
@@ -2653,7 +2768,7 @@ namespace MyFundex.Api.Infrastructure.Persistence.Migrations
                     b.HasIndex("AccountId", "InstrumentToken")
                         .IsUnique();
 
-                    b.ToTable("Positions", "myfund_prod_trading");
+                    b.ToTable("Positions", "fundex_prod_trading");
                 });
 
             modelBuilder.Entity("MyFundex.Trading.Order", b =>
@@ -2929,7 +3044,7 @@ namespace MyFundex.Api.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("IX_Books_AccountId1");
 
-                    b.ToTable("Books", "myfund_sandbox_trading");
+                    b.ToTable("Books", "fundex_sandbox_trading");
                 });
 
             modelBuilder.Entity("MyFundex.Trading.PaperPosition", b =>
@@ -3005,7 +3120,7 @@ namespace MyFundex.Api.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("IX_Positions_AccountId_InstrumentToken1");
 
-                    b.ToTable("Positions", "myfund_sandbox_trading");
+                    b.ToTable("Positions", "fundex_sandbox_trading");
                 });
 
             modelBuilder.Entity("MyFundex.Trading.ProfitDistribution", b =>
@@ -3051,6 +3166,14 @@ namespace MyFundex.Api.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<decimal>("OtherDeductionPercent")
+                        .HasPrecision(20, 4)
+                        .HasColumnType("numeric(20,4)");
+
+                    b.Property<decimal>("OtherDeductions")
+                        .HasPrecision(20, 4)
+                        .HasColumnType("numeric(20,4)");
+
                     b.Property<decimal>("PlatformReward")
                         .HasPrecision(20, 4)
                         .HasColumnType("numeric(20,4)");
@@ -3058,6 +3181,14 @@ namespace MyFundex.Api.Infrastructure.Persistence.Migrations
                     b.Property<string>("SettlementReference")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<decimal>("TaxWithheld")
+                        .HasPrecision(20, 4)
+                        .HasColumnType("numeric(20,4)");
+
+                    b.Property<decimal>("TaxWithholdingPercent")
+                        .HasPrecision(20, 4)
+                        .HasColumnType("numeric(20,4)");
 
                     b.Property<decimal>("TraderReward")
                         .HasPrecision(20, 4)
@@ -3081,7 +3212,7 @@ namespace MyFundex.Api.Infrastructure.Persistence.Migrations
                     b.HasIndex("AccountId", "SettlementReference")
                         .IsUnique();
 
-                    b.ToTable("ProfitDistributions", "myfund_prod_trading");
+                    b.ToTable("ProfitDistributions", "fundex_prod_trading");
                 });
 
             modelBuilder.Entity("MyFundex.Wallet.LedgerEntry", b =>
@@ -3330,7 +3461,7 @@ namespace MyFundex.Api.Infrastructure.Persistence.Migrations
                     b.HasIndex("WithdrawalId")
                         .IsUnique();
 
-                    b.ToTable("WithdrawalHolds", "myfund_prod_wallet");
+                    b.ToTable("WithdrawalHolds", "fundex_prod_wallet");
                 });
 
             modelBuilder.Entity("MyFundex.Withdrawals.WithdrawalCalculation", b =>
@@ -3498,6 +3629,46 @@ namespace MyFundex.Api.Infrastructure.Persistence.Migrations
                     b.HasIndex("Status", "NextCheckAt");
 
                     b.ToTable("Requests", "fundex_withdrawal");
+                });
+
+            modelBuilder.Entity("MyFundex.Identity.IdentityEvent", b =>
+                {
+                    b.HasOne("MyFundex.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserInternalId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("MyFundex.Identity.RolePermission", b =>
+                {
+                    b.HasOne("MyFundex.Identity.Permission", null)
+                        .WithMany()
+                        .HasForeignKey("PermissionInternalId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MyFundex.Identity.Role", null)
+                        .WithMany()
+                        .HasForeignKey("RoleInternalId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MyFundex.Identity.UserRole", b =>
+                {
+                    b.HasOne("MyFundex.Identity.Role", null)
+                        .WithMany()
+                        .HasForeignKey("RoleInternalId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MyFundex.Identity.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserInternalId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("MyFundex.Trading.Execution", b =>

@@ -20,7 +20,7 @@ public sealed class WalletDbContext(DbContextOptions<WalletDbContext> o, ICurren
     {
         m.HasDefaultSchema("fundex_wallet");
         ConfigureEntity(m.Entity<WithdrawalHold>());
-        m.Entity<WithdrawalHold>().ToTable("WithdrawalHolds", "myfund_prod_wallet");
+        m.Entity<WithdrawalHold>().ToTable("WithdrawalHolds", "fundex_prod_wallet");
         m.Entity<WithdrawalHold>().HasIndex(x => x.WithdrawalId).IsUnique();
         m.Entity<LedgerEntry>()
             .HasOne(x => x.Transaction)

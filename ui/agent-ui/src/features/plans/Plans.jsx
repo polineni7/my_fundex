@@ -31,7 +31,7 @@ export default function Plans() {
         }),
       });
       setMessage(
-        "Your subscription is awaiting payment. See Subscriptions for its status.",
+        "Your assessment enrolment is awaiting payment. See My assessments for its status.",
       );
     } catch (error) {
       setMessage(error.message);
@@ -60,6 +60,7 @@ export default function Plans() {
           </button>
         ))}
       </div>
+      <p>The assessment fee pays for a simulated trading assessment. Passing makes you eligible for contract review; it does not guarantee employment, a contract, income, or live trading access.</p>
       {loading && <p role="status">Loading plans…</p>}
       {error && <p role="alert">{error}</p>}
       {message && <p role="status">{message}</p>}
@@ -73,12 +74,12 @@ export default function Plans() {
         <article className="plan-offer" key={plan.planVersionId}>
           <header>
             <div>
-              <span>TRADING CAPITAL</span>
+              <span>SIMULATED ASSESSMENT CAPITAL</span>
               <h2>{money(plan.challengeCapital)}</h2>
               <p>{plan.name}</p>
             </div>
             <div>
-              <span>ENTRY FEE</span>
+              <span>ASSESSMENT FEE</span>
               <h3>{money(plan.registrationFee)}</h3>
             </div>
           </header>

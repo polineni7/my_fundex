@@ -17,6 +17,8 @@ export default function Plans() {
     registrationFee: 999,
     count: 2,
     rewardSharePercent: 80,
+    taxWithholdingPercent: 0,
+    otherDeductionPercent: 0,
     fundedDailyLossPercent: 5,
     fundedTotalLossPercent: 10,
     targets: [8, 5, 5],
@@ -91,6 +93,8 @@ export default function Plans() {
           challengeCapital: Number(version.challengeCapital),
           registrationFee: Number(version.registrationFee),
           rewardSharePercent: Number(version.rewardSharePercent),
+          taxWithholdingPercent: Number(version.taxWithholdingPercent),
+          otherDeductionPercent: Number(version.otherDeductionPercent),
           fundedDailyLossPercent: Number(version.fundedDailyLossPercent),
           fundedTotalLossPercent: Number(version.fundedTotalLossPercent),
           stages,
@@ -159,7 +163,7 @@ export default function Plans() {
             </label>
             {[
               ["challengeCapital", "Capital (INR)"],
-              ["registrationFee", "Entry fee (INR)"],
+              ["registrationFee", "Assessment fee (INR)"],
               ["minimumTradingDays", "Minimum trading days per stage"],
               ["maxDailyLossPercent", "Daily loss limit (%)"],
               ["maxTotalLossPercent", "Total loss limit (%)"],
@@ -216,8 +220,35 @@ export default function Plans() {
               Each stage uses the configured target and an unlimited trading
               period. Review before publication.
             </p>
-            {[["Reward share (%)", "rewardSharePercent"], ["Funded daily loss (%)", "fundedDailyLossPercent"], ["Funded total loss (%)", "fundedTotalLossPercent"]].map(([label, field]) => <label key={field}>{label}<input className="field" required type="number" min="0.01" max="100" step="0.01" value={version[field]} onChange={e => setVersion({ ...version, [field]: e.target.value })} /></label>)}
-              <button className="btn" disabled={busy}>
+            {[
+              ["Tax withholding on trader share (%)", "taxWithholdingPercent"],
+              ["Other deductions on trader share (%)", "otherDeductionPercent"],
+              ["Reward share (%)", "rewardSharePercent"],
+              ["Funded daily loss (%)", "fundedDailyLossPercent"],
+              ["Funded total loss (%)", "fundedTotalLossPercent"],
+            ].map(([label, field]) => (
+              <label key={field}>
+                {label}
+                <input
+                  className="field"
+                  required
+                  type="number"
+                  min={
+                    field === "taxWithholdingPercent" ||
+                    field === "otherDeductionPercent"
+                      ? "0"
+                      : "0.01"
+                  }
+                  max="100"
+                  step="0.01"
+                  value={version[field]}
+                  onChange={(e) =>
+                    setVersion({ ...version, [field]: e.target.value })
+                  }
+                />
+              </label>
+            ))}
+            <button className="btn" disabled={busy}>
               Create version
             </button>
           </form>
@@ -230,7 +261,9 @@ export default function Plans() {
             </h3>
             <p>
               Capital ₹{item.challengeCapital} · Fee ₹{item.registrationFee} ·
-              Reward share {item.rewardSharePercent}%
+              Reward share {item.rewardSharePercent}% · Tax withholding{" "}
+              {item.taxWithholdingPercent}% · Other deductions{" "}
+              {item.otherDeductionPercent}%
             </p>
             {canWrite && item.status === "Draft" && (
               <button

@@ -37,7 +37,7 @@ For actual PostgreSQL integration tests, set `MYFUNDEX_TEST_POSTGRES` to an isol
 
 In a private environment, set `Bootstrap__AdminEmail`, `Bootstrap__AdminPassword` and `Bootstrap__SeedAdmin=true` for one startup after migrations. The seed hashes the password and creates the ADMIN membership transactionally. It refuses to promote an already-existing identity. Remove the password and turn SeedAdmin off immediately after successful creation.
 
-Development retains the original development-only bootstrap account when the user table is empty. Never use that account for a production deployment.
+The shared fixed-password development bootstrap has been removed. Use the explicit administrator bootstrap above. See DEFAULT_DATA.md for the UAT defaults and administrator credential location.
 
 ## Google configuration
 

@@ -8,6 +8,7 @@ namespace MyFundex.Identity;
 
 public sealed class User : EntityBase
 {
+    public long SecurityVersion { get; set; } = 1;
     public string? GoogleSubject { get; set; }
     public Guid UserId { get; set; }
     public string Email { get; set; } = "";

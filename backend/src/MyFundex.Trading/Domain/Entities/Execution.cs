@@ -10,6 +10,10 @@ namespace MyFundex.Trading;
 
 public sealed class Execution : EntityBase, IImmutableRecord
 {
+    public decimal? RealizedProfit { get; set; }
+    public decimal? TraderSharePercent { get; set; }
+    public decimal? TaxWithholdingPercent { get; set; }
+    public decimal? OtherDeductionPercent { get; set; }
     public Guid ExecutionId { get; set; }
     public Order? Order { get; set; }
     public long OrderInternalId { get; set; }

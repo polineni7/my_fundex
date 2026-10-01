@@ -16,6 +16,85 @@ public static class LifecycleEndpoints
     {
         var api = app.MapGroup("/api/v1").RequireAuthorization();
         api.MapGet(
+            "/accounts/{accountId:guid}/earnings",
+            async (
+                Guid accountId,
+                IFundedAccountReader accounts,
+                ICurrentActor actor,
+                TradingDbContext db,
+                CancellationToken ct
+            ) =>
+            {
+                var account = await accounts.GetByPublicIdAsync(accountId, ct);
+                if (
+                    account == null
+                    || account.UserId != actor.ActorId
+                    || account.TradingMode != "Funded"
+                )
+                    return Results.NotFound();
+                var executions = await (
+                    from fill in db.Executions.AsNoTracking()
+                    join order in db.Orders.AsNoTracking() on fill.OrderInternalId equals order.Id
+                    where order.AccountId == accountId && order.Side == "SELL" && order.UsesLiveBook
+                    orderby fill.ExecutedAt descending
+                    select new
+                    {
+                        fill.ExecutionId,
+                        order.OrderId,
+                        order.Symbol,
+                        fill.Quantity,
+                        fill.Price,
+                        fill.ExecutedAt,
+                        fill.RealizedProfit,
+                        fill.TraderSharePercent,
+                        fill.TaxWithholdingPercent,
+                        fill.OtherDeductionPercent,
+                    }
+                ).Take(200).ToListAsync(ct);
+                var trades = executions.Select(x => new
+                {
+                    trade = x,
+                    estimate = x.RealizedProfit.HasValue
+                    && x.TraderSharePercent.HasValue
+                    && x.TaxWithholdingPercent.HasValue
+                    && x.OtherDeductionPercent.HasValue
+                        ? ProfitAllocation.Calculate(
+                            x.RealizedProfit.Value,
+                            x.TraderSharePercent.Value,
+                            x.TaxWithholdingPercent.Value,
+                            x.OtherDeductionPercent.Value
+                        )
+                        : null,
+                });
+                var settlements = await db.Set<ProfitDistribution>()
+                    .AsNoTracking()
+                    .Where(x => x.AccountId == accountId)
+                    .OrderByDescending(x => x.Id)
+                    .Take(100)
+                    .Select(x => new
+                    {
+                        x.DistributionId,
+                        x.GrossProfit,
+                        x.Fees,
+                        x.TraderReward,
+                        x.PlatformReward,
+                        x.TaxWithheld,
+                        x.OtherDeductions,
+                        x.DeliveredAt,
+                        x.CreatedAt,
+                    })
+                    .ToListAsync(ct);
+                return Results.Ok(
+                    new
+                    {
+                        trades,
+                        settlements,
+                        note = "Trade estimates exclude broker charges and account losses. Only verified net settlements become withdrawable. Withholding is not evidence of tax remittance.",
+                    }
+                );
+            }
+        );
+        api.MapGet(
             "/challenges",
             async (
                 SubscriptionDbContext db,

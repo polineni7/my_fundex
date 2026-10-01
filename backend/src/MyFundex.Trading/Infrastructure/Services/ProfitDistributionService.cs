@@ -78,7 +78,13 @@ public sealed class ProfitDistributionService(
         if (surplus <= fees)
             throw new ArgumentException("There is no net settled profit to distribute.");
         var net = surplus - fees;
-        var reward = decimal.Floor(net * entitlement.RewardSharePercent) / 100m;
+        var split = ProfitAllocation.Calculate(
+            net,
+            entitlement.RewardSharePercent,
+            entitlement.TaxWithholdingPercent,
+            entitlement.OtherDeductionPercent
+        );
+        var reward = split.Net;
         if (reward <= 0 || reward > net)
             throw new ArgumentException("Invalid plan reward share.");
         var distribution = new ProfitDistribution
@@ -90,7 +96,11 @@ public sealed class ProfitDistributionService(
             GrossProfit = surplus,
             Fees = fees,
             TraderReward = reward,
-            PlatformReward = net - reward,
+            PlatformReward = split.Platform,
+            TaxWithheld = split.Tax,
+            OtherDeductions = split.Other,
+            TaxWithholdingPercent = entitlement.TaxWithholdingPercent,
+            OtherDeductionPercent = entitlement.OtherDeductionPercent,
         };
         // Remove the entire settled surplus before delivering the trader share. It cannot also fund orders.
         book.Cash -= surplus;
@@ -106,9 +116,11 @@ public sealed class ProfitDistributionService(
         var item = await db.Set<ProfitDistribution>().SingleAsync(x => x.DistributionId == id, ct);
         if (item.DeliveredAt != null)
             return;
-        await ledger.CreditProfitAsync(
+        await ledger.CreditProfitAllocationAsync(
             item.AccountInternalId,
             item.TraderReward,
+            item.TaxWithheld,
+            item.OtherDeductions,
             "VerifiedSettlement",
             id.ToString("N"),
             ct

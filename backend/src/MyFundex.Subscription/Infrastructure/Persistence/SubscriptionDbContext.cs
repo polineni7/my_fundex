@@ -37,6 +37,14 @@ public sealed class SubscriptionDbContext(
         ConfigureEntity(m.Entity<PlanVersion>());
         ConfigureEntity(m.Entity<PlanStageDefinition>());
         ConfigureEntity(m.Entity<UserSubscription>());
+        // Legacy CLR/API names are retained for existing clients; storage names reflect assessment enrolment.
+        m.Entity<UserSubscription>().ToTable("AssessmentEnrollments", "fundex_subscription");
+        m.Entity<UserSubscription>().Property(x => x.SubscriptionId).HasColumnName("EnrollmentId");
+        m.Entity<UserSubscription>()
+            .Property(x => x.PreviousSubscriptionId)
+            .HasColumnName("PreviousEnrollmentId");
+        m.Entity<UserSubscription>().Property(x => x.SubscribedAt).HasColumnName("EnrolledAt");
+        m.Entity<PlanVersion>().Property(x => x.RegistrationFee).HasColumnName("AssessmentFee");
         m.Entity<Plan>().HasIndex(x => x.PlanId).IsUnique();
         m.Entity<Plan>().HasIndex(x => x.Code).IsUnique().HasFilter("\"IsDeleted\" = false");
         m.Entity<PlanVersion>()

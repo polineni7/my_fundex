@@ -1,5 +1,9 @@
 # MyFundex lifecycle implementation — 2026-10-01
 
+> Identity/schema update: see [IDENTITY_AND_SCHEMA_DESIGN.md](IDENTITY_AND_SCHEMA_DESIGN.md) for consistent fundex_ schemas, profile/access APIs, immediate token revocation and the 38-test PostgreSQL validation.
+
+> Later Neon UAT update: all four migrations now apply successfully to fundx_uat, and database readiness returns HTTP 200. See [NEON_UAT_SETUP.md](NEON_UAT_SETUP.md). Earlier localhost failures below are historical; provider/manual lifecycle acceptance remains outstanding.
+
 The repository now contains the purchase-to-evaluation-to-funded-trading lifecycle and its trader/admin screens. Local compilation and automated service tests pass. This is **not a production acceptance sign-off**: no reachable PostgreSQL database or configured provider accounts were available for full integration/manual acceptance testing.
 
 ## Implemented flow
@@ -27,7 +31,7 @@ Admin: plan/version editing, funded rules/reward share, graduation, account susp
 
 Broker placement/cancellation, reconciliation, verification, market quotes, account lifecycle, eligibility, wallet posting, payouts and messaging use injectable contracts. Upstox is the supplied adapter; a replacement broker must implement and register these contracts and map its instruments/executions. Evaluation accounting is independent of broker order execution.
 
-Paper books/positions use myfund_sandbox_trading. Live books/positions/distributions use myfund_prod_trading; withdrawal holds use myfund_prod_wallet. Shared account metadata, order/execution envelopes, subscriptions and existing wallets remain in module-specific fundex_* schemas. No business tables are intentionally mapped to public. This is logical mode separation, not separate physical databases.
+Paper books/positions use fundex_sandbox_trading. Live books/positions/distributions use fundex_prod_trading; withdrawal holds use fundex_prod_wallet. Shared account metadata, order/execution envelopes, subscriptions and existing wallets remain in module-specific fundex_* schemas. No business tables are intentionally mapped to public. This is logical mode separation, not separate physical databases.
 
 The EF model and upgrade SQL include tables, foreign keys, unique constraints, indexes, audit fields, soft-delete filters and concurrency versions. Historical single-sided ledger records or legacy broker evaluation orders require a separate reconciliation/backfill; the migration does not invent missing history.
 

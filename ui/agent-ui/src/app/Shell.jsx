@@ -1,3 +1,5 @@
+import Earnings from "../features/lifecycle/Earnings";
+import Profile from "../features/profile/Profile";
 import React from "react";
 import { NavLink, Route, Routes } from "react-router-dom";
 import { useAuth } from "../store";
@@ -17,14 +19,16 @@ export default function Shell() {
         <div className="brand">MyFundex</div>
         <nav className="nav">
           <NavLink to="/">Dashboard</NavLink>
-          <NavLink to="/plans">Plans</NavLink>
-          <NavLink to="/subscriptions">Subscriptions</NavLink>
+          <NavLink to="/plans">Assessment plans</NavLink>
+          <NavLink to="/subscriptions">My assessments</NavLink>
           <NavLink to="/payments">Payments</NavLink>
           <NavLink to="/challenges">Evaluation progress</NavLink>
+          <NavLink to="/earnings">Trade earnings</NavLink>
           <NavLink to="/wallet">Wallet & withdrawals</NavLink>
           <NavLink to="/trade">Trade</NavLink>
           <NavLink to="/orders">Orders</NavLink>
           <NavLink to="/positions">Positions</NavLink>
+          <NavLink to="/profile">My profile</NavLink>
           <NavLink to="/notifications">Notifications</NavLink>
         </nav>
         <button className="btn secondary" onClick={logout}>
@@ -33,6 +37,8 @@ export default function Shell() {
       </aside>
       <main className="main">
         <Routes>
+          <Route path="/earnings" element={<Earnings />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="/" element={<Dashboard />} />
           <Route path="/plans" element={<Plans />} />
           <Route path="/subscriptions" element={<Subscriptions />} />

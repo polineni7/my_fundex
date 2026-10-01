@@ -45,7 +45,9 @@ public sealed record LiveEntitlement(
     Guid PolicySetId,
     decimal RewardSharePercent,
     decimal DailyLossPercent = 5,
-    decimal TotalLossPercent = 10
+    decimal TotalLossPercent = 10,
+    decimal TaxWithholdingPercent = 0,
+    decimal OtherDeductionPercent = 0
 );
 
 public interface ILiveEntitlementReader

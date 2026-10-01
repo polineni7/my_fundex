@@ -95,7 +95,7 @@ export default function Subscriptions() {
       {message && <p role="status">{message}</p>}
       {!rows.length && (
         <div className="card">
-          <p>No subscriptions yet.</p>
+          <p>No assessment enrolments yet.</p>
           <Link to="/plans">Choose a plan</Link>
         </div>
       )}
@@ -106,7 +106,7 @@ export default function Subscriptions() {
             <h2>{row.name}</h2>
             <p>Plan version {row.versionNumber}</p>
             <p>
-              Entry fee: INR{" "}
+              Assessment fee: INR{" "}
               {Number(row.registrationFee).toLocaleString("en-IN")}
             </p>
             {row.status === "PendingPayment" && (

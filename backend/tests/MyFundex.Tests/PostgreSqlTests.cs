@@ -65,6 +65,110 @@ public sealed class PostgreSqlTests
         Assert.Equal(200, balance);
     }
 
+    [PostgreSqlFact]
+    public async Task IdentityAccessConstraintsAuditAndTokenRevocationUsePostgreSql()
+    {
+        var connection = Environment.GetEnvironmentVariable("MYFUNDEX_TEST_POSTGRES")!;
+        Assert.EndsWith("_tests", new Npgsql.NpgsqlConnectionStringBuilder(connection).Database);
+        await using (
+            var migrations = new DevBootstrapDbContext(
+                new DbContextOptionsBuilder<DevBootstrapDbContext>()
+                    .UseNpgsql(
+                        connection,
+                        pg =>
+                            pg.MigrationsHistoryTable("__EFMigrationsHistory", "fundex_integration")
+                    )
+                    .Options,
+                new Actor()
+            )
+        )
+            await migrations.Database.MigrateAsync();
+        var options = new DbContextOptionsBuilder<MyFundex.Identity.IdentityDbContext>()
+            .UseNpgsql(connection)
+            .Options;
+        await using var db = new MyFundex.Identity.IdentityDbContext(
+            options,
+            new Actor(),
+            new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider()
+        );
+        var user = new MyFundex.Identity.User
+        {
+            UserId = Guid.NewGuid(),
+            Email = Guid.NewGuid().ToString("N") + "@example.invalid",
+            FirstName = "Identity",
+            LastName = "Test",
+        };
+        var role = await db.Roles.SingleAsync(x => x.Code == "TRADER");
+        db.Add(new MyFundex.Identity.UserRole { User = user, RoleInternalId = role.Id });
+        await db.SaveChangesAsync();
+        var version = user.SecurityVersion;
+        await new MyFundex.Identity.IdentityAdministration(db, new Actor()).UpdateAccessAsync(
+            user.UserId,
+            user.Version,
+            "Suspended",
+            ["TRADER"],
+            "Integration test",
+            default
+        );
+        Assert.Equal(version + 1, user.SecurityVersion);
+        Assert.Equal("Suspended", user.Status);
+        Assert.True(
+            await db.Events.AnyAsync(x =>
+                x.UserInternalId == user.Id && x.EventType == "AccessChanged"
+            )
+        );
+        db.Add(
+            new MyFundex.Identity.UserRole { UserInternalId = user.Id, RoleInternalId = role.Id }
+        );
+        await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+        await using var sql = new Npgsql.NpgsqlConnection(connection);
+        await sql.OpenAsync();
+        await using var command = new Npgsql.NpgsqlCommand(
+            "SELECT count(*) FROM information_schema.schemata WHERE schema_name LIKE 'myfund_%'",
+            sql
+        );
+        Assert.Equal(0L, await command.ExecuteScalarAsync());
+        command.CommandText =
+            "SELECT count(*) FROM information_schema.tables WHERE table_schema IN ('fundex_prod_trading','fundex_prod_wallet','fundex_sandbox_trading')";
+        Assert.Equal(6L, await command.ExecuteScalarAsync());
+    }
+
+    [PostgreSqlFact]
+    public async Task DefaultDataCanBeSeededTwiceWithoutDuplicatingOrPublishingPlans()
+    {
+        var connection = Environment.GetEnvironmentVariable("MYFUNDEX_TEST_POSTGRES")!;
+        Assert.EndsWith("_tests", new Npgsql.NpgsqlConnectionStringBuilder(connection).Database);
+        await using var db = new DevBootstrapDbContext(
+            new DbContextOptionsBuilder<DevBootstrapDbContext>()
+                .UseNpgsql(
+                    connection,
+                    pg => pg.MigrationsHistoryTable("__EFMigrationsHistory", "fundex_integration")
+                )
+                .Options,
+            new Actor()
+        );
+        await db.Database.MigrateAsync();
+        await DefaultDataSeeder.SeedAsync(db, default);
+        var memberships = await db.Set<MyFundex.Identity.RolePermission>().CountAsync();
+        var stages = await db.Set<MyFundex.Subscription.PlanStageDefinition>().CountAsync();
+        await DefaultDataSeeder.SeedAsync(db, default);
+        Assert.Equal(memberships, await db.Set<MyFundex.Identity.RolePermission>().CountAsync());
+        Assert.Equal(
+            stages,
+            await db.Set<MyFundex.Subscription.PlanStageDefinition>().CountAsync()
+        );
+        Assert.Equal(5, stages);
+        Assert.True(memberships > 0);
+        Assert.False(
+            await db.Set<MyFundex.Subscription.PlanStageDefinition>()
+                .AnyAsync(x => x.PolicySetId == Guid.Empty)
+        );
+        Assert.Equal(
+            2,
+            await db.Set<MyFundex.Subscription.PlanVersion>().CountAsync(x => x.Status == "Draft")
+        );
+    }
+
     private sealed class Actor : ICurrentActor
     {
         public long ActorId => 0;
