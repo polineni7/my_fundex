@@ -3,22 +3,46 @@ using MyFundex.Broker;
 using MyFundex.Contracts;
 
 namespace MyFundex.Api.Infrastructure;
+
 public static class BrokerSettingsEndpoints
 {
     public static void MapBrokerSettings(this WebApplication app)
     {
         var group = app.MapGroup("/api/v1/admin/broker-settings").RequireAuthorization(p => p.RequireRole("ADMIN"));
         group.MapGet("", async (BrokerDbContext db, CancellationToken ct) => Results.Ok(await db.Accounts.AsNoTracking()
-            .OrderBy(x => x.ProviderCode).ThenBy(x => x.Environment).Select(x => new {
-                x.BrokerAccountId, x.DisplayName, provider = x.ProviderCode, x.Environment, reference = x.AccountReference,
-                x.BrokerUserId, x.IsActive, x.IsDefault, x.UseForMarketData, x.SessionExpiresAt, x.Version,
-                hasCredentials = x.ProtectedCredentials != null, executionSupported = x.ProviderCode == "Upstox"
+            .OrderBy(x => x.ProviderCode).ThenBy(x => x.Environment).Select(x => new
+            {
+                x.BrokerAccountId,
+                x.DisplayName,
+                provider = x.ProviderCode,
+                x.Environment,
+                reference = x.AccountReference,
+                x.BrokerUserId,
+                x.IsActive,
+                x.IsDefault,
+                x.UseForMarketData,
+                x.SessionExpiresAt,
+                x.Version,
+                hasCredentials = x.ProtectedCredentials != null,
+                executionSupported = x.ProviderCode == "Upstox"
             }).ToListAsync(ct)));
         group.MapPost("", (BrokerSetupInput input, BrokerConfigurationService service, CancellationToken ct) =>
             SaveAsync(null, input, service, ct));
         group.MapPut("/{id:guid}", (Guid id, BrokerSetupInput input, BrokerConfigurationService service, CancellationToken ct) =>
             SaveAsync(id, input, service, ct));
-        group.MapPost("/{id:guid}/verify", async (Guid id, BrokerDbContext db, IBrokerAccountVerifier verifier, CancellationToken ct) => {
+        group.MapDelete("/{id:guid}", async (Guid id, long version, BrokerDbContext db, MyFundex.FundedAccounts.AccountsDbContext accounts, IAuditWriter audit, CancellationToken ct) =>
+        {
+            var item = await db.Accounts.SingleOrDefaultAsync(x => x.BrokerAccountId == id, ct);
+            if (item == null) return Results.NotFound(); if (item.Version != version) return Results.Conflict();
+            if (item.IsActive) return Results.Conflict(new { message = "Disable the connection before archiving it." });
+            if (await accounts.Accounts.AnyAsync(x => x.BrokerProvider == item.ProviderCode && x.BrokerCredentialKey == item.AccountReference, ct))
+                return Results.Conflict(new { message = "This connection is referenced by a trading account and cannot be archived." });
+            item.ProtectedCredentials = null; db.Remove(item); await db.SaveChangesAsync(ct);
+            await audit.WriteAsync("Broker", "BrokerConfiguration", id.ToString(), "Archived", null, item.AccountReference, ct);
+            return Results.NoContent();
+        });
+        group.MapPost("/{id:guid}/verify", async (Guid id, BrokerDbContext db, IBrokerAccountVerifier verifier, CancellationToken ct) =>
+        {
             var account = await db.Accounts.AsNoTracking().SingleOrDefaultAsync(x => x.BrokerAccountId == id, ct);
             if (account == null) return Results.NotFound();
             if (!account.IsActive || account.Environment != "PRODUCTION" || account.ProviderCode != "Upstox")

@@ -1,3 +1,5 @@
+import BusinessManager from "../features/business/BusinessManager";
+import BusinessReport from "../features/dashboard/BusinessReport";
 import ProfileDialog from "../components/ui/ProfileDialog";
 import Policies from "../features/policies/Policies";
 import Users from "../features/identity/Users";
@@ -44,6 +46,11 @@ export default function Shell() {
     "/accounts": "Funded accounts",
     "/settings": "Settings",
     "/audit": "Audit history",
+    "/business": "Business reports",
+    "/coupons": "Coupons and offers",
+    "/audiences": "Audience lists",
+    "/campaigns": "Email campaigns",
+    "/content": "Content and events",
   };
   const [menuOpen, setMenuOpen] = useState(false);
   const user = useAuth((s) => s.user);
@@ -82,9 +89,22 @@ export default function Shell() {
             ["/policies", "Risk policies", ShieldCheck],
             ["/settings", "Settings", SettingsIcon],
             ["/audit", "Audit history", FileClock],
+            ["/business", "Business reports", LayoutDashboard],
+            ["/coupons", "Coupons and offers", ClipboardList],
+            ["/audiences", "Audience lists", UsersIcon],
+            ["/campaigns", "Email campaigns", FileClock],
+            ["/content", "Content and events", Layers],
           ]
             .filter(
-              ([path]) => path !== "/users" || user?.roles?.includes("ADMIN"),
+              ([path]) =>
+                ![
+                  "/users",
+                  "/business",
+                  "/coupons",
+                  "/audiences",
+                  "/campaigns",
+                  "/content",
+                ].includes(path) || user?.roles?.includes("ADMIN"),
             )
             .map(([path, title, Icon]) => (
               <NavLink
@@ -163,25 +183,28 @@ export default function Shell() {
         </header>
         {profileOpen && <ProfileDialog onClose={() => setProfileOpen(false)} />}
         <main className="main">
-          {location.pathname !== "/" && (
-            <div className="page-navigation">
-              {location.pathname !== "/" && (
+          {location.state?.from &&
+            location.state.from !== location.pathname && (
+              <div className="page-navigation">
                 <button
                   className="btn secondary"
-                  onClick={() =>
-                    location.state?.from
-                      ? navigate(location.state.from)
-                      : navigate("/")
-                  }
+                  onClick={() => navigate(location.state.from)}
                 >
-                  {location.state?.from === "/plans"
-                    ? "Back to assessment plan"
-                    : "Back to overview"}
+                  ← Back to{" "}
+                  {pageNames[location.state.from]?.toLowerCase() ||
+                    "previous page"}
                 </button>
-              )}
-            </div>
-          )}
+              </div>
+            )}
           <Routes>
+            {["coupons", "audiences", "campaigns", "content"].map((kind) => (
+              <Route
+                key={kind}
+                path={`/${kind}`}
+                element={<BusinessManager key={kind} kind={kind} />}
+              />
+            ))}
+            <Route path="/business" element={<BusinessReport />} />
             <Route path="/users" element={<Users />} />
             <Route path="/operations" element={<Operations />} />
             <Route path="/plans" element={<Plans />} />

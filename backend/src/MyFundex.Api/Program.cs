@@ -40,6 +40,7 @@ if (builder.Configuration.GetValue<bool>("Workers:Enabled", true))
     builder.Services.AddHostedService<ChallengeWorker>();
     builder.Services.AddHostedService<FinancialWorker>();
     builder.Services.AddHostedService<ChallengeMailWorker>();
+    builder.Services.AddHostedService<CampaignWorker>();
 }
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentActor, CurrentActor>();
@@ -64,7 +65,7 @@ builder
     .AddIntelligenceModule(cs)
     .AddNotificationsModule(cs)
     .AddAuditModule(cs)
-    .AddAdministrationModule();
+    .AddAdministrationModule(cs);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddCors(o =>
@@ -673,6 +674,9 @@ if (
 app.MapLifecycleEndpoints();
 app.MapPolicyManagement();
 app.MapBrokerSettings();
+app.MapBusinessReporting();
+app.MapCoupons();
+app.MapEngagement();
 app.MapPlanCatalogue();
 app.MapGoogleSignIn();
 app.MapCommercialEndpoints();

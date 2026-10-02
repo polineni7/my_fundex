@@ -19,6 +19,7 @@ function loadCheckout() {
   return checkoutScript;
 }
 export default function Subscriptions() {
+  const [couponCode, setCouponCode] = useState("");
   const [rows, setRows] = useState([]),
     [busy, setBusy] = useState(null),
     [message, setMessage] = useState("");
@@ -37,6 +38,7 @@ export default function Subscriptions() {
         method: "POST",
         body: JSON.stringify({
           subscriptionId: subscription.subscriptionId,
+          couponCode: couponCode.trim() || null,
           idempotencyKey: crypto.randomUUID(),
         }),
       });
@@ -82,6 +84,8 @@ export default function Subscriptions() {
   return (
     <section>
       <h1>Your evaluations</h1>
+      <label>Coupon code (optional)<input value={couponCode} maxLength={40} onChange={e=>setCouponCode(e.target.value.toUpperCase())} /></label>
+      <p>Coupons apply when a new checkout is created. Existing checkout amounts remain unchanged.</p>
       <p>
         Each purchase starts a separate paper account. Previous attempts stay in
         your history.

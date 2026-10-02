@@ -74,6 +74,7 @@ public sealed class DevBootstrapDbContext(
         Map<InstrumentSignal>(m, "Signals", "fundex_intelligence");
         Map<Notification>(m, "Notifications", "fundex_notification");
         Map<AuditEvent>(m, "Events", "fundex_audit");
+        MyFundex.Administration.AdministrationDbContext.ConfigureModel(m);
         IdentityDbContext.ConfigureModel(m);
         MasterDataDbContext.ConfigureModel(m);
         ConfigurationDbContext.ConfigureModel(m);

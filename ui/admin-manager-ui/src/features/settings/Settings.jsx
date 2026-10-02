@@ -27,7 +27,10 @@ export default function Settings() {
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [tab, setTab] = useState("brokers"),
-    [loading, setLoading] = useState(true);
+    [loading, setLoading] = useState(true),
+    [purpose, setPurpose] = useState("SANDBOX"),
+    [showForm, setShowForm] = useState(false),
+    [archive, setArchive] = useState(null);
   const [setting, setSetting] = useState({
     settingKey: "Trading.LiveEnabled",
     value: "false",
@@ -62,6 +65,7 @@ export default function Settings() {
     }
   }
   function edit(item) {
+    setShowForm(true);
     setEditing(item.brokerAccountId);
     setForm({
       ...empty,
@@ -99,7 +103,7 @@ export default function Settings() {
           className={`btn ${tab === "runtime" ? "" : "secondary"}`}
           onClick={() => setTab("runtime")}
         >
-          Runtime settings
+          Trading controls
         </button>
         <button
           className="btn secondary"
@@ -115,277 +119,367 @@ export default function Settings() {
         </p>
       )}
       {loading && <p role="status">Loading settings…</p>}
+      {archive && (
+        <section
+          className="card"
+          role="alertdialog"
+          aria-label="Archive broker"
+        >
+          <h2>Archive {archive.displayName}?</h2>
+          <p>
+            This removes its saved credentials. Connections referenced by
+            trading accounts cannot be archived.
+          </p>
+          <button
+            className="btn"
+            disabled={busy}
+            onClick={() =>
+              act(async () => {
+                await api(
+                  `/admin/broker-settings/${archive.brokerAccountId}?version=${archive.version}`,
+                  { method: "DELETE" },
+                );
+                setArchive(null);
+              })
+            }
+          >
+            Archive connection
+          </button>
+          <button className="btn secondary" onClick={() => setArchive(null)}>
+            Cancel
+          </button>
+        </section>
+      )}
+
       {tab === "brokers" ? (
         <>
           <div className="plan-guide">
             Assessment sandbox and real trading have separate credentials.
             Saving a connection does not place trades.
           </div>
-          <div className="connection-grid">
-            {connections.map((item) => (
-              <article className="card" key={item.brokerAccountId}>
-                <span className="badge">
-                  {item.environment === "SANDBOX"
-                    ? "Assessment sandbox"
-                    : "Real trading"}
-                </span>
-                <h2>{item.displayName || item.reference}</h2>
-                <p>
-                  {item.provider} · {item.isActive ? "Enabled" : "Disabled"}
-                </p>
+          <section className="card">
+            <div className="top">
+              <div>
+                <h2>Broker connections</h2>
                 <p className="muted">
-                  {item.executionSupported
-                    ? "Trading adapter available"
-                    : "Configuration only — execution adapter pending"}
+                  Choose a purpose, then add or manage its connections.
                 </p>
-                <dl className="metric-list">
-                  <dt>Reference</dt>
-                  <dd>{item.reference}</dd>
-                  <dt>Credentials</dt>
-                  <dd>
-                    {item.hasCredentials ? "Stored securely" : "Not configured"}
-                  </dd>
-                  <dt>Session expires</dt>
-                  <dd>
-                    {item.sessionExpiresAt
-                      ? new Date(item.sessionExpiresAt).toLocaleString()
-                      : "Not specified"}
-                  </dd>
-                </dl>
-                <div className="actions">
-                  <button
-                    className="btn secondary"
-                    disabled={busy}
-                    onClick={() => edit(item)}
-                  >
-                    Edit connection
-                  </button>
-                  {item.isActive &&
-                    item.provider === "Upstox" &&
-                    item.environment === "PRODUCTION" && (
-                      <button
-                        className="btn"
-                        disabled={busy}
-                        onClick={() =>
-                          act(() =>
-                            api(
-                              `/admin/broker-settings/${item.brokerAccountId}/verify`,
-                              {
-                                method: "POST",
-                                successMessage:
-                                  "Broker identity verified. No order was placed.",
-                              },
-                            ),
-                          )
-                        }
-                      >
-                        Verify identity
-                      </button>
-                    )}
-                </div>
-              </article>
-            ))}
-          </div>
-          <form
-            className="card plan-form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              act(async () => {
-                await api(
-                  editing
-                    ? `/admin/broker-settings/${editing}`
-                    : "/admin/broker-settings",
-                  {
-                    method: editing ? "PUT" : "POST",
-                    successMessage: "Broker configuration saved securely.",
-                    body: JSON.stringify({
-                      ...form,
-                      sessionExpiresAt: form.sessionExpiresAt
-                        ? new Date(form.sessionExpiresAt).toISOString()
-                        : null,
-                    }),
-                  },
-                );
-                setForm(empty);
-                setEditing(null);
-              });
-            }}
-          >
-            <h2>
-              {editing ? "Edit broker connection" : "Add broker connection"}
-            </h2>
-            <fieldset disabled={busy}>
-              <legend>Connection details</legend>
-              <label>
-                Connection name
-                <input
-                  required
-                  maxLength={100}
-                  value={form.displayName}
-                  onChange={(e) =>
-                    setForm({ ...form, displayName: e.target.value })
-                  }
-                />
-              </label>
-              <label>
-                Broker
-                <select
-                  disabled={Boolean(editing)}
-                  value={form.provider}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      provider: e.target.value,
-                      isActive: false,
-                    })
-                  }
-                >
-                  <option value="Upstox">Upstox</option>
-                  <option value="AngelOne">Angel One (setup only)</option>
-                  <option value="Groww">Groww (setup only)</option>
-                </select>
-              </label>
-              <label>
-                Trading environment
-                <select
-                  disabled={Boolean(editing)}
-                  value={form.environment}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      environment: e.target.value,
-                      useForMarketData: false,
-                    })
-                  }
-                >
-                  <option value="SANDBOX">Assessment / sandbox</option>
-                  <option value="PRODUCTION">Real trading / production</option>
-                </select>
-              </label>
-              <label>
-                Credential reference
-                <input
-                  required
-                  disabled={Boolean(editing)}
-                  maxLength={100}
-                  pattern="[A-Za-z0-9_-]+"
-                  placeholder="e.g. corporate-live"
-                  value={form.reference}
-                  onChange={(e) =>
-                    setForm({ ...form, reference: e.target.value })
-                  }
-                />
-                <small className="field-help">
-                  Used to link funded accounts to this connection. Cannot be
-                  changed later.
-                </small>
-              </label>
-              <label>
-                Broker user / client ID
-                <input
-                  maxLength={100}
-                  value={form.brokerUserId}
-                  onChange={(e) =>
-                    setForm({ ...form, brokerUserId: e.target.value })
-                  }
-                />
-              </label>
-              <label>
-                Session expiry (your local time)
-                <input
-                  type="datetime-local"
-                  value={form.sessionExpiresAt}
-                  onChange={(e) =>
-                    setForm({ ...form, sessionExpiresAt: e.target.value })
-                  }
-                />
-              </label>
-            </fieldset>
-            <fieldset disabled={busy}>
-              <legend>Encrypted credentials</legend>
-              {[
-                ["apiKey", "API key"],
-                ["apiSecret", "API secret"],
-                ["accessToken", "Access / session token"],
-                ["refreshToken", "Refresh token"],
-              ].map(([key, label]) => (
-                <label key={key}>
-                  {label}
+              </div>
+              <button
+                className="btn"
+                onClick={() => {
+                  setEditing(null);
+                  setForm({ ...empty, environment: purpose });
+                  setShowForm(true);
+                }}
+              >
+                + Add connection
+              </button>
+            </div>
+            <label>
+              Trading purpose
+              <select
+                value={purpose}
+                onChange={(e) => {
+                  setPurpose(e.target.value);
+                  setShowForm(false);
+                }}
+              >
+                <option value="SANDBOX">Assessment — practice trading</option>
+                <option value="PRODUCTION">Funded — real trading</option>
+              </select>
+            </label>
+            <p className="muted">
+              {purpose === "SANDBOX"
+                ? "Assessment orders use the paper engine. Live prices come from the real-trading market-data connection."
+                : "Real orders require a passed assessment, approved account and an enabled broker connection."}
+            </p>
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Broker</th>
+                    <th>Status</th>
+                    <th>Default</th>
+                    <th>Session expires</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {connections
+                    .filter((x) => x.environment === purpose)
+                    .map((item) => (
+                      <tr key={item.brokerAccountId}>
+                        <td>{item.displayName || item.reference}</td>
+                        <td>{item.provider}</td>
+                        <td>{item.isActive ? "Enabled" : "Disabled"}</td>
+                        <td>{item.isDefault ? "Yes" : "No"}</td>
+                        <td>
+                          {item.sessionExpiresAt
+                            ? new Date(item.sessionExpiresAt).toLocaleString()
+                            : "Not set"}
+                        </td>
+                        <td>
+                          <button
+                            className="btn secondary"
+                            disabled={busy}
+                            onClick={() => edit(item)}
+                          >
+                            View / edit
+                          </button>
+                          {!item.isActive && (
+                            <button
+                              className="btn secondary"
+                              disabled={busy}
+                              onClick={() => setArchive(item)}
+                            >
+                              Archive
+                            </button>
+                          )}
+                          {item.isActive &&
+                            item.provider === "Upstox" &&
+                            purpose === "PRODUCTION" && (
+                              <button
+                                className="btn secondary"
+                                disabled={busy}
+                                onClick={() =>
+                                  act(() =>
+                                    api(
+                                      `/admin/broker-settings/${item.brokerAccountId}/verify`,
+                                      {
+                                        method: "POST",
+                                        successMessage:
+                                          "Broker identity verified. No order placed.",
+                                      },
+                                    ),
+                                  )
+                                }
+                              >
+                                Verify
+                              </button>
+                            )}
+                        </td>
+                      </tr>
+                    ))}
+                  {!connections.some((x) => x.environment === purpose) && (
+                    <tr>
+                      <td colSpan={6}>
+                        No connections for this purpose. Select Add connection
+                        to configure one.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+          {showForm && (
+            <form
+              className="card plan-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                act(async () => {
+                  await api(
+                    editing
+                      ? `/admin/broker-settings/${editing}`
+                      : "/admin/broker-settings",
+                    {
+                      method: editing ? "PUT" : "POST",
+                      successMessage: "Broker configuration saved securely.",
+                      body: JSON.stringify({
+                        ...form,
+                        sessionExpiresAt: form.sessionExpiresAt
+                          ? new Date(form.sessionExpiresAt).toISOString()
+                          : null,
+                      }),
+                    },
+                  );
+                  setForm(empty);
+                  setEditing(null);
+                  setShowForm(false);
+                });
+              }}
+            >
+              <h2>
+                {editing ? "Edit broker connection" : "Add broker connection"}
+              </h2>
+              <fieldset disabled={busy}>
+                <legend>Connection details</legend>
+                <label>
+                  Connection name
                   <input
-                    type="password"
-                    autoComplete="new-password"
-                    maxLength={8000}
-                    value={form[key]}
-                    placeholder={
-                      editing
-                        ? "Leave blank to keep stored value"
-                        : "Enter credential"
-                    }
+                    required
+                    maxLength={100}
+                    value={form.displayName}
                     onChange={(e) =>
-                      setForm({ ...form, [key]: e.target.value })
+                      setForm({ ...form, displayName: e.target.value })
                     }
                   />
                 </label>
-              ))}
-            </fieldset>
-            <fieldset disabled={busy}>
-              <legend>Connection use</legend>
-              <label>
-                <input
-                  type="checkbox"
-                  disabled={form.provider !== "Upstox"}
-                  checked={form.isActive}
-                  onChange={(e) =>
-                    setForm({ ...form, isActive: e.target.checked })
-                  }
-                />
-                Enable connection
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={form.isDefault}
-                  onChange={(e) =>
-                    setForm({ ...form, isDefault: e.target.checked })
-                  }
-                />
-                Default for this trading environment
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  disabled={form.environment !== "PRODUCTION"}
-                  checked={form.useForMarketData}
-                  onChange={(e) =>
-                    setForm({ ...form, useForMarketData: e.target.checked })
-                  }
-                />
-                Use for market quotes (including paper assessments)
-              </label>
-            </fieldset>
-            <p className="muted">
-              Paper assessments use the internal simulation engine. Sandbox
-              credentials are isolated from real-order credentials. Angel One
-              and Groww configurations can be saved but remain disabled until
-              their execution and reconciliation adapters are implemented.
-            </p>
-            <div className="form-footer">
-              <button
-                type="button"
-                className="btn secondary"
-                disabled={busy}
-                onClick={() => {
-                  setForm(empty);
-                  setEditing(null);
-                }}
-              >
-                Cancel / clear
-              </button>
-              <button className="btn" disabled={busy}>
-                {busy ? "Saving…" : "Save connection"}
-              </button>
-            </div>
-          </form>
+                <label>
+                  Broker
+                  <select
+                    disabled={Boolean(editing)}
+                    value={form.provider}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        provider: e.target.value,
+                        isActive: false,
+                      })
+                    }
+                  >
+                    <option value="Upstox">Upstox</option>
+                    <option value="AngelOne">Angel One (setup only)</option>
+                    <option value="Groww">Groww (setup only)</option>
+                  </select>
+                </label>
+                <label>
+                  Trading environment
+                  <select
+                    disabled={Boolean(editing)}
+                    value={form.environment}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        environment: e.target.value,
+                        useForMarketData: false,
+                      })
+                    }
+                  >
+                    <option value="SANDBOX">Assessment / sandbox</option>
+                    <option value="PRODUCTION">
+                      Real trading / production
+                    </option>
+                  </select>
+                </label>
+                <label>
+                  Credential reference
+                  <input
+                    required
+                    disabled={Boolean(editing)}
+                    maxLength={100}
+                    pattern="[A-Za-z0-9_-]+"
+                    placeholder="e.g. corporate-live"
+                    value={form.reference}
+                    onChange={(e) =>
+                      setForm({ ...form, reference: e.target.value })
+                    }
+                  />
+                  <small className="field-help">
+                    Used to link funded accounts to this connection. Cannot be
+                    changed later.
+                  </small>
+                </label>
+                <label>
+                  Broker user / client ID
+                  <input
+                    maxLength={100}
+                    value={form.brokerUserId}
+                    onChange={(e) =>
+                      setForm({ ...form, brokerUserId: e.target.value })
+                    }
+                  />
+                </label>
+                <label>
+                  Session expiry (your local time)
+                  <input
+                    type="datetime-local"
+                    value={form.sessionExpiresAt}
+                    onChange={(e) =>
+                      setForm({ ...form, sessionExpiresAt: e.target.value })
+                    }
+                  />
+                </label>
+              </fieldset>
+              <fieldset disabled={busy}>
+                <legend>Encrypted credentials</legend>
+                {[
+                  ["apiKey", "API key"],
+                  ["apiSecret", "API secret"],
+                  ["accessToken", "Access / session token"],
+                  ["refreshToken", "Refresh token"],
+                ].map(([key, label]) => (
+                  <label key={key}>
+                    {label}
+                    <input
+                      type="password"
+                      autoComplete="new-password"
+                      maxLength={8000}
+                      value={form[key]}
+                      placeholder={
+                        editing
+                          ? "Leave blank to keep stored value"
+                          : "Enter credential"
+                      }
+                      onChange={(e) =>
+                        setForm({ ...form, [key]: e.target.value })
+                      }
+                    />
+                  </label>
+                ))}
+              </fieldset>
+              <fieldset disabled={busy}>
+                <legend>Connection use</legend>
+                <label>
+                  <input
+                    type="checkbox"
+                    disabled={form.provider !== "Upstox"}
+                    checked={form.isActive}
+                    onChange={(e) =>
+                      setForm({ ...form, isActive: e.target.checked })
+                    }
+                  />
+                  Enable connection
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={form.isDefault}
+                    onChange={(e) =>
+                      setForm({ ...form, isDefault: e.target.checked })
+                    }
+                  />
+                  Default for this trading environment
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    disabled={form.environment !== "PRODUCTION"}
+                    checked={form.useForMarketData}
+                    onChange={(e) =>
+                      setForm({ ...form, useForMarketData: e.target.checked })
+                    }
+                  />
+                  Use for market quotes (including paper assessments)
+                </label>
+              </fieldset>
+              <p className="muted">
+                Paper assessments use the internal simulation engine. Sandbox
+                credentials are isolated from real-order credentials. Angel One
+                and Groww configurations can be saved but remain disabled until
+                their execution and reconciliation adapters are implemented.
+              </p>
+              <div className="form-footer">
+                <button
+                  type="button"
+                  className="btn secondary"
+                  disabled={busy}
+                  onClick={() => {
+                    setForm(empty);
+                    setEditing(null);
+                    setShowForm(false);
+                  }}
+                >
+                  Cancel / clear
+                </button>
+                <button className="btn" disabled={busy}>
+                  {busy ? "Saving…" : "Save connection"}
+                </button>
+              </div>
+            </form>
+          )}
         </>
       ) : (
         <>
@@ -404,25 +498,42 @@ export default function Settings() {
             <h2>Edit runtime setting</h2>
             <fieldset disabled={busy}>
               <legend>Application configuration</legend>
-              {["settingKey", "value", "environment", "category"].map((key) => (
-                <label key={key}>
-                  {
-                    {
-                      settingKey: "Setting key",
-                      value: "Value",
-                      environment: "Scope",
-                      category: "Category",
-                    }[key]
+              <label>
+                Control
+                <select
+                  value={setting.settingKey}
+                  onChange={() =>
+                    setSetting({
+                      settingKey: "Trading.LiveEnabled",
+                      value: "false",
+                      environment: "GLOBAL",
+                      category: "Trading",
+                    })
                   }
-                  <input
-                    required
-                    value={setting[key]}
-                    onChange={(e) =>
-                      setSetting({ ...setting, [key]: e.target.value })
-                    }
-                  />
-                </label>
-              ))}
+                >
+                  <option value="Trading.LiveEnabled">
+                    Allow real trading
+                  </option>
+                </select>
+              </label>
+              <label>
+                State
+                <select
+                  value={setting.value}
+                  onChange={(e) =>
+                    setSetting({ ...setting, value: e.target.value })
+                  }
+                >
+                  <option value="false">Disabled</option>
+                  <option value="true">Enabled</option>
+                </select>
+              </label>
+              <label>
+                Applies to
+                <select value="GLOBAL" disabled>
+                  <option value="GLOBAL">All eligible funded accounts</option>
+                </select>
+              </label>
             </fieldset>
             <p className="muted">
               Use GLOBAL for trading settings. Broker secrets belong in Broker
@@ -452,8 +563,16 @@ export default function Settings() {
                     <td>
                       <button
                         className="btn secondary"
-                        disabled={item.value === "********"}
-                        onClick={() => setSetting({ ...item })}
+                        disabled={
+                          item.settingKey !== "Trading.LiveEnabled" ||
+                          item.environment !== "GLOBAL"
+                        }
+                        onClick={() =>
+                          setSetting({
+                            ...item,
+                            value: item.value === "true" ? "true" : "false",
+                          })
+                        }
                       >
                         Edit
                       </button>

@@ -9,6 +9,10 @@ namespace MyFundex.Payments;
 public sealed class PaymentTransaction : EntityBase
 {
     public DateTimeOffset? FulfilledAt { get; set; }
+    public Guid? CouponId { get; set; }
+    public string? CouponCode { get; set; }
+    public decimal OriginalAmount { get; set; }
+    public decimal DiscountAmount { get; set; }
     public Guid PaymentId { get; set; }
     public long UserInternalId { get; set; }
     public Guid? SubscriptionId { get; set; }

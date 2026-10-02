@@ -55,6 +55,8 @@ public sealed class RuntimeSettings(
             || category.Length > 100
         )
             throw new ArgumentException("Invalid setting.");
+        if (key == "Trading.LiveEnabled" && (env != "GLOBAL" || value is not ("true" or "false")))
+            throw new ArgumentException("Real trading requires GLOBAL scope and an enabled or disabled value.");
         if (key.StartsWith("DataProtection.", StringComparison.OrdinalIgnoreCase))
             throw new ArgumentException("Encryption key-ring settings are managed by the server and cannot be edited through runtime settings.");
         if (key.StartsWith("Broker.", StringComparison.OrdinalIgnoreCase))

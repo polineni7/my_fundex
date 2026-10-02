@@ -10,6 +10,7 @@ public sealed class PaymentsDbContext(DbContextOptions<PaymentsDbContext> o, ICu
     : AuditableDbContext(o, a)
 {
     public DbSet<PaymentTransaction> Payments => Set<PaymentTransaction>();
+    public DbSet<Coupon> Coupons => Set<Coupon>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<Receipt> Receipts => Set<Receipt>();
 
@@ -18,6 +19,13 @@ public sealed class PaymentsDbContext(DbContextOptions<PaymentsDbContext> o, ICu
     public static void ConfigureModel(ModelBuilder m)
     {
         m.HasDefaultSchema("fundex_payments");
+        ConfigureEntity(m.Entity<Coupon>());
+        m.Entity<Coupon>().ToTable("Coupons", "fundex_payments");
+        m.Entity<Coupon>().HasIndex(x => x.CouponId).IsUnique();
+        m.Entity<Coupon>().HasIndex(x => x.Code).IsUnique();
+        m.Entity<Coupon>().Property(x => x.Code).HasMaxLength(40);
+        m.Entity<Coupon>().Property(x => x.Name).HasMaxLength(150);
+        m.Entity<PaymentTransaction>().HasIndex(x => new { x.CouponId, x.UserInternalId });
         ConfigureEntity(m.Entity<PaymentTransaction>());
         ConfigureEntity(m.Entity<Invoice>());
         ConfigureEntity(m.Entity<Receipt>());

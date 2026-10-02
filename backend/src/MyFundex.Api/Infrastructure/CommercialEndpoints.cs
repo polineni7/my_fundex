@@ -140,6 +140,7 @@ public static class CommercialEndpoints
                 PaymentsDbContext db,
                 SubscriptionDbContext subscriptions,
                 RazorpayGateway gateway,
+                MyFundex.Identity.IdentityDbContext identity,
                 ICurrentActor actor,
                 IConfiguration config,
                 CancellationToken ct
@@ -201,8 +202,33 @@ public static class CommercialEndpoints
                     Status = "Creating",
                 };
                 PaymentSignature.ToPaise(payment.Amount);
-                db.Add(payment);
-                await db.SaveChangesAsync(ct);
+                payment.OriginalAmount = payment.Amount;
+                await using (var transaction = await db.Database.BeginTransactionAsync(ct))
+                {
+                    if (!string.IsNullOrWhiteSpace(request.CouponCode))
+                    {
+                        var code = request.CouponCode.Trim().ToUpperInvariant();
+                        var coupon = await db.Coupons.SingleOrDefaultAsync(x => x.Code == code, ct);
+                        var now = DateTimeOffset.UtcNow;
+                        var publicUserId = await identity.Users.AsNoTracking().Where(x => x.Id == actor.ActorId).Select(x => x.UserId).SingleAsync(ct);
+                        var publicPlanId = await subscriptions.Plans.AsNoTracking().Where(x => x.Id == subscription.PlanInternalId).Select(x => x.PlanId).SingleAsync(ct);
+                        if (coupon == null || !coupon.IsActive || now < coupon.StartsAt || now >= coupon.EndsAt ||
+                            coupon.ReservedUses >= coupon.MaximumUses || payment.Amount < coupon.MinimumFee ||
+                            (coupon.PlanId.HasValue && coupon.PlanId != publicPlanId) || (coupon.UserId.HasValue && coupon.UserId != publicUserId))
+                            return Results.BadRequest(new { message = "This coupon is unavailable or does not apply to this assessment." });
+                        var uses = await db.Payments.CountAsync(x => x.CouponId == coupon.CouponId && x.UserInternalId == actor.ActorId, ct);
+                        if (uses >= coupon.UsesPerUser) return Results.BadRequest(new { message = "You have used the available redemptions for this coupon." });
+                        payment.CouponId = coupon.CouponId;
+                        payment.CouponCode = coupon.Code;
+                        payment.DiscountAmount = CouponPricing.Discount(coupon.DiscountType, coupon.Value, payment.Amount);
+                        payment.Amount -= payment.DiscountAmount;
+                        coupon.ReservedUses++;
+                    }
+                    db.Add(payment);
+                    // Coupon's concurrency token prevents concurrent checkout from exceeding redemption limits.
+                    await db.SaveChangesAsync(ct);
+                    await transaction.CommitAsync(ct);
+                }
                 // Do not retry an uncertain external creation. The receipt identifies the intent for reconciliation.
                 var order = await gateway.CreateOrderAsync(payment.PaymentId, payment.Amount, ct);
                 payment.ProviderOrderId = order.Id;
@@ -351,6 +377,6 @@ public sealed record SubscribeRequest(
     Guid? PreviousSubscriptionId = null
 );
 
-public sealed record CheckoutRequest(Guid SubscriptionId, Guid IdempotencyKey);
+public sealed record CheckoutRequest(Guid SubscriptionId, Guid IdempotencyKey, string? CouponCode = null);
 
 public sealed record VerifyPaymentRequest(string PaymentId, string Signature);
