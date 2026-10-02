@@ -116,13 +116,13 @@ export default function Login() {
           <h2>Welcome back</h2>
           <p className="muted">Sign in to your MyFundex workspace.</p>
           <form onSubmit={submit} aria-busy={busy}>
-            <label htmlFor="email">Work email</label>
+            <label htmlFor="email">Username or email</label>
             <input
               id="email"
               className="field"
-              type="email"
+              type="text"
               autoComplete="username"
-              placeholder="you@company.com"
+              placeholder="Enter your username or email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}

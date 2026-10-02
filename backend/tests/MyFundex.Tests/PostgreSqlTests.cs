@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using MyFundex.Api.Infrastructure;
 using MyFundex.BuildingBlocks.Abstractions;
@@ -203,6 +205,69 @@ public sealed class PostgreSqlTests
             2,
             await seedVersions.CountAsync(x => x.Status == "Draft")
         );
+    }
+
+    [PostgreSqlFact]
+    public async Task MissingProfileKeyDoesNotPreventCredentialVerification()
+    {
+        var connection = Environment.GetEnvironmentVariable("MYFUNDEX_TEST_POSTGRES")!;
+        Assert.EndsWith("_tests", new Npgsql.NpgsqlConnectionStringBuilder(connection).Database);
+        var provider = new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider();
+        var options = new DbContextOptionsBuilder<MyFundex.Identity.IdentityDbContext>().UseNpgsql(connection).Options;
+        await using var db = new MyFundex.Identity.IdentityDbContext(options, new Actor(), provider);
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        var user = new MyFundex.Identity.User { UserId = Guid.NewGuid(), Email = $"key-test-{Guid.NewGuid():N}@example.test",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Test-only-password!"), FirstName = "Test", LastName = "User" };
+        db.Add(user);
+        await db.SaveChangesAsync();
+        var foreign = new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider().CreateProtector("unavailable-key");
+        var ciphertext = Microsoft.AspNetCore.DataProtection.DataProtectionCommonExtensions.Protect(foreign, "Original name");
+        await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE fundex_identity.\"Users\" SET \"FirstName\" = {ciphertext} WHERE \"Id\" = {user.Id}");
+        db.ChangeTracker.Clear();
+        var credentials = await IdentityProfileReader.Credentials(db).SingleAsync(x => x.Id == user.Id);
+        Assert.True(BCrypt.Net.BCrypt.Verify("Test-only-password!", credentials.PasswordHash));
+        Assert.False(await IdentityProfileReader.ReadNamesAsync(db, credentials, Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance, default));
+        Assert.Equal("", credentials.FirstName);
+        await transaction.RollbackAsync();
+    }
+
+    [PostgreSqlFact]
+    public async Task DatabaseKeysAreEncryptedAndSharedAcrossInstances()
+    {
+        var connection = Environment.GetEnvironmentVariable("MYFUNDEX_TEST_POSTGRES")!;
+        Assert.EndsWith("_tests", new Npgsql.NpgsqlConnectionStringBuilder(connection).Database);
+        await using var migration = new DevBootstrapDbContext(new DbContextOptionsBuilder<DevBootstrapDbContext>()
+            .UseNpgsql(connection, pg => pg.MigrationsHistoryTable("__EFMigrationsHistory", "fundex_integration")).Options, new Actor());
+        await migration.Database.MigrateAsync();
+        using var rsa = System.Security.Cryptography.RSA.Create(2048);
+        var request = new System.Security.Cryptography.X509Certificates.CertificateRequest("CN=Isolated test",
+            rsa, System.Security.Cryptography.HashAlgorithmName.SHA256, System.Security.Cryptography.RSASignaturePadding.Pkcs1);
+        using var certificate = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddDays(1));
+        var application = $"key-test-{Guid.NewGuid():N}";
+        ServiceProvider Instance()
+        {
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddDataProtection().SetApplicationName(application).ProtectKeysWithCertificate(certificate).DisableAutomaticKeyGeneration();
+            services.Configure<Microsoft.AspNetCore.DataProtection.KeyManagement.KeyManagementOptions>(o => o.XmlRepository = new PostgresKeyRepository(connection));
+            return services.BuildServiceProvider();
+        }
+        using var first = Instance();
+        var key = first.GetRequiredService<Microsoft.AspNetCore.DataProtection.KeyManagement.IKeyManager>()
+            .CreateNewKey(DateTimeOffset.UtcNow.AddSeconds(-1), DateTimeOffset.UtcNow.AddDays(1));
+        try
+        {
+            var protectedValue = first.GetRequiredService<IDataProtectionProvider>().CreateProtector("profile").Protect("Test name");
+            using var second = Instance();
+            Assert.Equal("Test name", second.GetRequiredService<IDataProtectionProvider>().CreateProtector("profile").Unprotect(protectedValue));
+            var xml = new PostgresKeyRepository(connection).GetAllElements().Single(x => (string?)x.Attribute("id") == key.KeyId.ToString());
+            Assert.Contains(xml.Descendants(), x => x.Name.LocalName == "encryptedSecret");
+            Assert.DoesNotContain(xml.Descendants(), x => x.Name.LocalName == "masterKey");
+        }
+        finally
+        {
+            await migration.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM fundex_configuration.\"Settings\" WHERE \"SettingKey\" = {"DataProtection.KeyRing.key-" + key.KeyId}");
+        }
     }
 
     private sealed class Actor : ICurrentActor

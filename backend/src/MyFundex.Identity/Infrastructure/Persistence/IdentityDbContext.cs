@@ -82,6 +82,8 @@ public sealed class IdentityDbContext(
         ConfigureEntity(m.Entity<Permission>());
         ConfigureEntity(m.Entity<UserRole>());
         ConfigureEntity(m.Entity<RolePermission>());
+        m.Entity<User>().Property(x => x.Username).HasMaxLength(100);
+        m.Entity<User>().HasIndex(x => x.Username).IsUnique().HasFilter("\"IsDeleted\" = false AND \"Username\" IS NOT NULL");
         m.Entity<User>().HasIndex(x => x.GoogleSubject).IsUnique();
         m.Entity<User>().HasIndex(x => x.UserId).IsUnique();
         m.Entity<User>().HasIndex(x => x.Email).IsUnique().HasFilter("\"IsDeleted\" = false");

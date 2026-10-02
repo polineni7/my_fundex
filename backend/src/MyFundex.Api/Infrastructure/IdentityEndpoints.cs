@@ -35,11 +35,10 @@ public static class IdentityEndpoints
         var me = app.MapGroup("/api/v1/me").RequireAuthorization();
         me.MapGet(
             "",
-            async (IdentityDbContext db, ICurrentActor actor, CancellationToken ct) =>
+            async (IdentityDbContext db, ICurrentActor actor, ILoggerFactory logs, CancellationToken ct) =>
             {
-                var user = await db
-                    .Users.AsNoTracking()
-                    .SingleAsync(x => x.Id == actor.ActorId, ct);
+                var user = await IdentityProfileReader.Credentials(db).SingleAsync(x => x.Id == actor.ActorId, ct);
+                var profileAvailable = await IdentityProfileReader.ReadNamesAsync(db, user, logs.CreateLogger("IdentityProfile"), ct);
                 var roles = await (
                     from link in db.UserRoles.AsNoTracking()
                     join role in db.Roles.AsNoTracking() on link.RoleInternalId equals role.Id
@@ -57,6 +56,7 @@ public static class IdentityEndpoints
                         user.Version,
                         roles,
                         hasGoogleLogin = user.GoogleSubject != null,
+                        profileRecoveryRequired = !profileAvailable,
                     }
                 );
             }
@@ -79,11 +79,14 @@ public static class IdentityEndpoints
                     return Results.BadRequest(
                         new { message = "Names must be at most 100 characters." }
                     );
-                var user = await db.Users.SingleAsync(x => x.Id == actor.ActorId, ct);
+                var user = await IdentityProfileReader.Credentials(db).SingleAsync(x => x.Id == actor.ActorId, ct);
+                db.Attach(user);
                 if (user.Version != input.Version)
                     return Results.Conflict();
                 user.FirstName = input.FirstName.Trim();
                 user.LastName = input.LastName.Trim();
+                db.Entry(user).Property(x => x.FirstName).IsModified = true;
+                db.Entry(user).Property(x => x.LastName).IsModified = true;
                 db.Events.Add(
                     new IdentityEvent
                     {
@@ -102,7 +105,8 @@ public static class IdentityEndpoints
             if (string.IsNullOrEmpty(input.CurrentPassword) || string.IsNullOrEmpty(input.NewPassword) ||
                 input.NewPassword.Length < 12 || System.Text.Encoding.UTF8.GetByteCount(input.NewPassword) > 72)
                 return Results.BadRequest(new { message = "Use a new password of at least 12 characters and at most 72 UTF-8 bytes." });
-            var user = await db.Users.SingleAsync(x => x.Id == actor.ActorId, ct);
+            var user = await IdentityProfileReader.Credentials(db).SingleAsync(x => x.Id == actor.ActorId, ct);
+                db.Attach(user);
             if (string.IsNullOrEmpty(user.PasswordHash) || !BCrypt.Net.BCrypt.Verify(input.CurrentPassword, user.PasswordHash))
                 return Results.BadRequest(new { message = "The current password is incorrect." });
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(input.NewPassword, 12);

@@ -174,7 +174,7 @@ app.MapPost(
     .RequireRateLimiting("authentication");
 app.MapPost(
         "/api/v1/auth/login",
-        async (LoginRequest r, IdentityDbContext db, JwtTokenService jwt, CancellationToken ct) =>
+        async (LoginRequest r, IdentityDbContext db, JwtTokenService jwt, ILoggerFactory logs, CancellationToken ct) =>
         {
             if (
                 string.IsNullOrWhiteSpace(r.Email)
@@ -183,7 +183,7 @@ app.MapPost(
             )
                 return Results.Unauthorized();
             var email = r.Email.Trim().ToLowerInvariant();
-            var u = await db.Users.SingleOrDefaultAsync(x => x.Email == email, ct);
+            var u = await IdentityProfileReader.Credentials(db).SingleOrDefaultAsync(x => x.Email == email || x.Username == email, ct);
             if (
                 u == null
                 || u.Status != "Active"
@@ -228,10 +228,12 @@ app.MapPost(
             )
                 .Distinct()
                 .ToListAsync(ct);
+            var profileAvailable = await IdentityProfileReader.ReadNamesAsync(db, u, logs.CreateLogger("IdentityProfile"), ct);
             return Results.Ok(
                 new
                 {
                     accessToken = jwt.Create(u, roles, perms),
+                    profileRecoveryRequired = !profileAvailable,
                     user = new
                     {
                         u.UserId,

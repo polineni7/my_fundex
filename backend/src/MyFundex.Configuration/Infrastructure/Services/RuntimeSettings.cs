@@ -14,6 +14,7 @@ public sealed class RuntimeSettings(
 ) : IRuntimeSettings
 {
     public static bool IsSecret(string key) =>
+        key.StartsWith("DataProtection.", StringComparison.OrdinalIgnoreCase) ||
         new[] { "token", "secret", "password", "privatekey", "signingkey" }.Any(part =>
             key.Contains(part, StringComparison.OrdinalIgnoreCase)
         );
@@ -54,6 +55,8 @@ public sealed class RuntimeSettings(
             || category.Length > 100
         )
             throw new ArgumentException("Invalid setting.");
+        if (key.StartsWith("DataProtection.", StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("Encryption key-ring settings are managed by the server and cannot be edited through runtime settings.");
         if (key.StartsWith("Broker.", StringComparison.OrdinalIgnoreCase))
             throw new ArgumentException("Use the Broker setup form to manage broker connections.");
         if (IsSecret(key))

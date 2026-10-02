@@ -40,6 +40,7 @@ public static class AdministratorBootstrap
         {
             UserId = Guid.NewGuid(),
             Email = email!,
+            Username = configuration["Bootstrap:AdminUsername"]?.Trim().ToLowerInvariant(),
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(password!, 12),
             FirstName = "System",
             LastName = "Administrator",

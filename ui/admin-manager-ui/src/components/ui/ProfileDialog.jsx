@@ -90,6 +90,13 @@ export default function ProfileDialog({ onClose }) {
           ×
         </button>
       </div>
+      {profile?.profileRecoveryRequired && (
+        <p role="alert" className="error">
+          Your saved name cannot be decrypted because its encryption key is
+          unavailable. Restore the original key, or enter your name and save to
+          replace the unreadable profile fields.
+        </p>
+      )}
       {error && (
         <p role="alert" className="error">
           {error}
